@@ -8,7 +8,9 @@ signal interact_pressed
 
 # Sengaja untyped (lihat catatan di game.gd).
 @onready var hp_bar = $TopLeft/HPRow/HPBar
+@onready var hp_label = $TopLeft/HPRow/HPBar/ValueLabel
 @onready var ep_bar = $TopLeft/EPRow/EPBar
+@onready var ep_label = $TopLeft/EPRow/EPBar/ValueLabel
 @onready var inventory_button = $InventoryButton
 @onready var weapon_button = $WeaponButton
 @onready var interact_button = $InteractButton
@@ -41,11 +43,13 @@ func _style_bar(bar: ProgressBar, fill: Color) -> void:
 func set_hp(hp: int, max_hp: int) -> void:
 	hp_bar.max_value = max_hp
 	hp_bar.value = hp
+	hp_label.text = "%d/%d" % [hp, max_hp]
 
 
 func set_ep(ep: int, max_ep: int) -> void:
 	ep_bar.max_value = max_ep
 	ep_bar.value = ep
+	ep_label.text = "%d/%d" % [ep, max_ep]
 
 
 func show_weapon() -> void:

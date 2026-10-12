@@ -58,6 +58,19 @@ size_flags_horizontal = 3
 max_value = 100.0
 value = 100.0
 
+[node name="ValueLabel" type="Label" parent="HUD/TopLeft/HPRow/HPBar"]
+mouse_filter = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 14
+text = "100/100"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="EPRow" type="HBoxContainer" parent="HUD/TopLeft"]
 theme_override_constants/separation = 8
 
@@ -71,6 +84,19 @@ custom_minimum_size = Vector2(220, 18)
 size_flags_horizontal = 3
 max_value = 100.0
 value = 100.0
+
+[node name="ValueLabel" type="Label" parent="HUD/TopLeft/EPRow/EPBar"]
+mouse_filter = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 12
+text = "100/100"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="InventoryButton" type="Button" parent="HUD"]
 anchor_left = 1.0
