@@ -275,7 +275,7 @@ func close_inventory() -> void:
 
 
 func _shift_camera(open: bool) -> void:
-	var target := inv_ui.get_drawer_w() * 0.5 if open else 0.0
+	var target: float = inv_ui.get_drawer_w() * 0.5 if open else 0.0
 	var tw := create_tween()
 	tw.tween_property(camera, "offset:x", target, 0.25).set_trans(Tween.TRANS_CUBIC)
 
