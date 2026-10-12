@@ -22,6 +22,10 @@ script = ExtResource("3_map")
 
 [node name="Player" type="CharacterBody2D" parent="."]
 position = Vector2(1000, 300)
+# FIX 2026-10-12: z=1 agar trap & trail SP (z=0, child Main) selalu
+# ter-render DI BAWAH sprite pemain, tapi tetap di atas lantai (z=0,
+# namun lantai lebih dulu di tree order).
+z_index = 1
 script = ExtResource("2_player")
 
 [node name="Sprite2D" type="Sprite2D" parent="Player"]

@@ -129,5 +129,46 @@ func _init() -> void:
 		"knockback dummy tersimpan sebagai velocity (hormati collision)")
 	d.queue_free()
 
+	# --- FIX 2026-10-12: duplikat kata senjata -> hanya 1 yang aktif ---
+	var words_script: GDScript = load("res://scripts/words.gd")
+	var dup_matches: Array = [
+		{"word": "TRAP", "dir": "h", "cells": [0, 1, 2, 3]},
+		{"word": "TRAP", "dir": "v", "cells": [10, 18, 26, 34]},
+		{"word": "HP", "dir": "h", "cells": [40, 41]},
+		{"word": "HP", "dir": "v", "cells": [50, 58]},
+		{"word": "SWORD", "dir": "h", "cells": [20, 21, 22, 23, 24]},
+	]
+	var filtered: Array = words_script.filter_weapon_first(dup_matches)
+	var trap_n := 0
+	var hp_n := 0
+	var sword_n := 0
+	for m in filtered:
+		match str(m["word"]):
+			"TRAP":
+				trap_n += 1
+			"HP":
+				hp_n += 1
+			"SWORD":
+				sword_n += 1
+	_check(trap_n == 1, "duplikat TRAP -> hanya 1 aktif")
+	_check(hp_n == 2, "duplikat HP (stat) -> tetap 2 aktif")
+	_check(sword_n == 1, "SWORD tunggal -> 1 aktif")
+	_check(filtered.size() == 4, "total match aktif = 4")
+	_check(str(filtered[0]["word"]) == "TRAP" and str(filtered[0]["dir"]) == "h",
+		"match TRAP pertama (h) yang dipertahankan")
+
+	# --- promosi duplikat: yang aktif pecah -> duplikat utuh naik jadi aktif ---
+	var invw = _new_inv()
+	for k in 4:
+		invw.grid[k] = "TRAP".substr(k, 1)          # TRAP horizontal baris 0
+	for k in 4:
+		invw.grid[k * 8 + 6] = "TRAP".substr(k, 1)  # TRAP vertikal kolom 6
+	var f1: Array = words_script.filter_weapon_first(invw.scan_words())
+	_check(f1.size() == 1, "2x TRAP utuh -> filter jadi 1 aktif")
+	invw.grid[0] = null  # pecahkan TRAP horizontal
+	var f2: Array = words_script.filter_weapon_first(invw.scan_words())
+	_check(f2.size() == 1 and str(f2[0]["dir"]) == "v",
+		"TRAP horizontal pecah -> TRAP vertikal naik jadi aktif")
+
 	print("Fase2: %d lolos, %d gagal" % [_passed, _failed])
 	quit(_failed)

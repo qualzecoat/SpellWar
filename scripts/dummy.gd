@@ -37,6 +37,8 @@ static func spawn(parent: Node, at: Vector2, patrol_to: Vector2 = Vector2.INF) -
 
 
 func _ready() -> void:
+	# Karakter: z=1 seperti Player agar trap/trail selalu di bawah kakinya.
+	z_index = 1
 	add_to_group("damageable")
 	add_to_group("dummy")
 	collision_layer = 1

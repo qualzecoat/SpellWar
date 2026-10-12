@@ -23,6 +23,8 @@ static func spawn(parent: Node, from: Vector2, dir: Vector2, by: Node2D) -> void
 
 
 func _ready() -> void:
+	# Proyektil tetap di atas karakter (z=2), seperti sebelum Player naik ke z=1.
+	z_index = 2
 	add_to_group("projectile")
 	collision_layer = 0
 	collision_mask = 1  # dinding (StaticBody2D) & damageable di layer 1

@@ -85,16 +85,14 @@ func on_inventory_changed() -> void:
 
 ## FIX 2026-10-12 (Fix 4): kata yang sama BOLEH muncul berkali-kali
 ## (stat stacking). Efek diterapkan/dicabut per DELTA jumlah kemunculan.
-## Senjata tetap tidak stack (diclamp ke 1).
+## FIX 2026-10-12: senjata tetap tidak stack — hanya match PERTAMA tiap
+## kata weapon yang aktif (di-highlight + efek); duplikat diabaikan.
 func rescan_words() -> void:
-	var matches: Array = inventory.scan_words()
+	var matches: Array = WordDB.filter_weapon_first(inventory.scan_words())
 	var counts: Dictionary = {}
 	for m in matches:
 		var w := str(m["word"])
 		counts[w] = int(counts.get(w, 0)) + 1
-	for w in counts.keys():
-		if str(WordDB.WORDS[w]["kind"]) == "weapon":
-			counts[w] = 1
 	var universe: Dictionary = {}
 	for w in _word_counts.keys():
 		universe[w] = true
