@@ -18,6 +18,11 @@ var _patrol_dir := 1.0
 var _slow_time := 0.0
 var _respawn_timer := 0.0
 var _bar: ProgressBar = null
+# FIX 2026-10-12 (Fix 5): knockback via velocity + move_and_slide agar
+# menghormati collision (tidak tembus dinding/keluar map). Pola sama
+# seperti player.gd; berlaku juga untuk pemain di Fase 3.
+var _knockback := Vector2.ZERO
+var _knock_time := 0.0
 
 
 static func spawn(parent: Node, at: Vector2, patrol_to: Vector2 = Vector2.INF) -> SpellDummy:
@@ -54,7 +59,7 @@ func _ready() -> void:
 	_bar.add_theme_stylebox_override("background", bg)
 	_bar.add_theme_stylebox_override("fill", fg)
 	add_child(_bar)
-	set_physics_process(patrol)
+	set_physics_process(true)
 
 
 func _draw() -> void:
@@ -66,18 +71,24 @@ func _draw() -> void:
 	draw_line(Vector2(10, -14), Vector2(-10, 2), Color(0.2, 0.2, 0.25), 4.0)
 
 
-func _physics_process(_delta: float) -> void:
-	if not patrol or not alive:
+func _physics_process(delta: float) -> void:
+	if not alive:
 		return
-	if _slow_time > 0.0:
-		_slow_time -= _delta
-	var target := patrol_b if _patrol_dir > 0.0 else patrol_a
-	var to: Vector2 = target - position
-	if to.length() < 8.0:
-		_patrol_dir *= -1.0
-		return
-	var spd := PATROL_SPEED * (0.5 if _slow_time > 0.0 else 1.0)
-	velocity = to.normalized() * spd
+	var vel := Vector2.ZERO
+	if patrol:
+		if _slow_time > 0.0:
+			_slow_time -= delta
+		var target := patrol_b if _patrol_dir > 0.0 else patrol_a
+		var to: Vector2 = target - position
+		if to.length() < 8.0:
+			_patrol_dir *= -1.0
+		else:
+			var spd := PATROL_SPEED * (0.5 if _slow_time > 0.0 else 1.0)
+			vel = to.normalized() * spd
+	if _knock_time > 0.0:
+		_knock_time -= delta
+		vel += _knockback
+	velocity = vel
 	move_and_slide()
 
 
@@ -95,9 +106,11 @@ func apply_slow(duration: float) -> void:
 	_slow_time = maxf(_slow_time, duration)
 
 
-func apply_knockback(direction: Vector2, force: float, _duration: float = 0.18) -> void:
-	var tw := create_tween()
-	tw.tween_property(self, "position", position + direction.normalized() * force * 0.12, 0.18)
+func apply_knockback(direction: Vector2, force: float, duration: float = 0.18) -> void:
+	if not alive:
+		return
+	_knockback = direction.normalized() * force
+	_knock_time = duration
 
 
 func _die() -> void:
@@ -117,7 +130,9 @@ func _process(delta: float) -> void:
 		_bar.value = hp
 		alive = true
 		visible = true
-		set_physics_process(patrol)
+		_knockback = Vector2.ZERO
+		_knock_time = 0.0
+		set_physics_process(true)
 		set_process(false)
 
 

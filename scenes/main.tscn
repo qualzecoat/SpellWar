@@ -193,15 +193,6 @@ offset_bottom = -90.0
 theme_override_font_sizes/font_size = 22
 text = "PUZZLE (E)"
 
-[node name="Joystick" type="Control" parent="HUD"]
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 40.0
-offset_top = -260.0
-offset_right = 260.0
-offset_bottom = -40.0
-script = ExtResource("7_joy")
-
 [node name="ToastLabel" type="Label" parent="HUD"]
 modulate = Color(1, 1, 1, 0)
 anchor_left = 0.25
@@ -238,3 +229,12 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("9_exch")
+
+[node name="Joystick" type="Control" parent="HUD"]
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = -260.0
+offset_right = 260.0
+offset_bottom = -40.0
+script = ExtResource("7_joy")

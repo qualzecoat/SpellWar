@@ -44,9 +44,14 @@ func _make_styles() -> void:
 
 
 func _build() -> void:
+	# FIX 2026-10-12 (Fix 1): root & dim TIDAK boleh menelan input — joystick
+	# harus tetap menerima sentuhan saat drawer terbuka (gerak tetap boleh).
+	# Hanya drawer (Panel) yang memakan input di areanya sendiri.
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var dim := ColorRect.new()
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.color = Color(0, 0, 0, 0.5)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dim)
 
 	_drawer = Panel.new()
@@ -168,11 +173,14 @@ func close_panel() -> void:
 	tw.tween_callback(func() -> void: visible = false)
 
 
-## Sinkron tampilan dengan model.
-func refresh(inventory: SpellInventory, active_words: Dictionary) -> void:
+## Sinkron tampilan dengan model. matches: Array of {word, dir, cells}.
+func refresh(inventory: SpellInventory, matches: Array) -> void:
 	var word_cells: Dictionary = {}
-	for word in active_words.keys():
-		for ci in active_words[word]["cells"]:
+	var present: Dictionary = {}  # kata unik yang sedang aktif
+	for m in matches:
+		var w := str(m["word"])
+		present[w] = true
+		for ci in m["cells"]:
 			word_cells[ci] = true
 	for i in _cells.size():
 		var v = inventory.grid[i]
@@ -185,12 +193,12 @@ func refresh(inventory: SpellInventory, active_words: Dictionary) -> void:
 			"pressed", _style_word if word_cells.has(i) else _style_normal)
 	for child in _active_list.get_children():
 		child.queue_free()
-	if active_words.is_empty():
+	if present.is_empty():
 		var lbl := Label.new()
 		lbl.text = "-"
 		lbl.add_theme_font_size_override("font_size", 18)
 		_active_list.add_child(lbl)
-	for word in active_words.keys():
+	for word in present.keys():
 		var lbl := Label.new()
 		lbl.text = word
 		lbl.add_theme_font_size_override("font_size", 22)
@@ -200,12 +208,17 @@ func refresh(inventory: SpellInventory, active_words: Dictionary) -> void:
 	var counts := inventory.letter_counts()
 	for word in _word_labels.keys():
 		var wlbl: Label = _word_labels[word]
-		if active_words.has(word):
+		if present.has(word):
 			wlbl.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6))
 		elif SpellInventory.can_form(str(word), counts):
 			wlbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.45))
 		else:
 			wlbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))
+
+
+## Lebar drawer — dipakai game.gd untuk menggeser kamera.
+func get_drawer_w() -> float:
+	return DRAWER_W
 
 
 func _on_cell_gui_input(event: InputEvent, idx: int) -> void:

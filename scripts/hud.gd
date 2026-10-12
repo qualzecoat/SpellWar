@@ -10,10 +10,13 @@ signal interact_pressed
 signal debug_toggled
 
 # Sengaja untyped (lihat catatan di game.gd).
+@onready var top_left = $TopLeft
 @onready var hp_bar = $TopLeft/HPRow/HPBar
 @onready var hp_label = $TopLeft/HPRow/HPBar/ValueLabel
 @onready var ep_bar = $TopLeft/EPRow/EPBar
 @onready var ep_label = $TopLeft/EPRow/EPBar/ValueLabel
+
+var sp_label: Label = null
 @onready var inventory_button = $InventoryButton
 @onready var sword_button = $SwordButton
 @onready var pistol_button = $PistolButton
@@ -42,6 +45,12 @@ func _ready() -> void:
 	respawn_label.visible = false
 	_style_bar(hp_bar, Color(0.90, 0.28, 0.28))
 	_style_bar(ep_bar, Color(0.28, 0.58, 0.95))
+	# FIX 2026-10-12 (Fix 4): indikator buff SP di bawah bar EP.
+	sp_label = Label.new()
+	sp_label.add_theme_font_size_override("font_size", 18)
+	sp_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.30))
+	sp_label.visible = false
+	top_left.add_child(sp_label)
 
 
 func _style_bar(bar: ProgressBar, fill: Color) -> void:
@@ -68,6 +77,18 @@ func set_ep(ep: int, max_ep: int) -> void:
 	ep_label.text = "%d/%d" % [ep, max_ep]
 
 
+## FIX 2026-10-12 (Fix 4): indikator buff SP, mis. "SP +15%" (stack: +32%).
+func set_sp_indicator(stacks: int) -> void:
+	if sp_label == null:
+		return
+	if stacks <= 0:
+		sp_label.visible = false
+		return
+	sp_label.visible = true
+	var pct := int(round((pow(1.15, stacks) - 1.0) * 100.0))
+	sp_label.text = "SP +%d%%" % pct
+
+
 ## EP kurang: bar berkedip + tombol bergoyang.
 func flash_ep() -> void:
 	var tw := create_tween()
@@ -84,7 +105,7 @@ func show_weapon(weapon: String) -> void:
 			pistol_button.visible = _actions_enabled
 		"TRAP":
 			trap_button.visible = _actions_enabled
-			# Teks quota diurus game.gd via set_trap_quota (jangan reset di sini).
+			# Teks count diurus game.gd via set_trap_count (jangan reset di sini).
 
 
 func hide_weapon(weapon: String) -> void:
@@ -97,15 +118,10 @@ func hide_weapon(weapon: String) -> void:
 			trap_button.visible = false
 
 
-func set_trap_quota(n: int) -> void:
-	trap_button.text = "TRAP (%d)" % n
-
-
-func set_trap_place_mode(active: bool) -> void:
-	if active:
-		trap_button.text = "PASANG!"
-	else:
-		pass  # teks quota diurus game.gd via set_trap_quota
+## FIX 2026-10-12 (Fix 3): jumlah = trap AKTIF terpasang / maksimal (3).
+## Bukan amunisi — trap meledak = slot kembali.
+func set_trap_count(active: int, max_n: int) -> void:
+	trap_button.text = "TRAP (%d/%d)" % [active, max_n]
 
 
 ## Saat drawer inventory terbuka: action dimatikan (tombol disembunyikan),

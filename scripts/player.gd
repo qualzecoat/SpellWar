@@ -23,6 +23,8 @@ var joystick = null  # di-set oleh game.gd; punya properti `output` (untyped)
 var _slow_time := 0.0
 var _knockback := Vector2.ZERO
 var _knock_time := 0.0
+var _ep_frac := 0.0  # FIX 2026-10-12 (Fix 2): akumulator fraksi regen EP
+var _trail_timer := 0.0
 
 signal hp_changed(hp: int, max_hp: int)
 signal ep_changed(ep: int, max_ep: int)
@@ -38,9 +40,17 @@ func _process(delta: float) -> void:
 	if not alive:
 		return
 	# Regen EP selalu jalan (di luar combat sekalipun).
+	# FIX 2026-10-12 (Fix 2): pakai akumulator float — int(ep + regen*delta)
+	# memotong fraksi tiap frame sehingga EP tidak pernah naik.
 	if ep < max_ep:
-		ep = mini(int(ep + ep_regen * delta), max_ep)
-		ep_changed.emit(ep, max_ep)
+		_ep_frac += ep_regen * delta
+		var gain := int(_ep_frac)
+		if gain > 0:
+			_ep_frac -= gain
+			ep = mini(ep + gain, max_ep)
+			ep_changed.emit(ep, max_ep)
+	else:
+		_ep_frac = 0.0
 	if _slow_time > 0.0:
 		_slow_time -= delta
 
@@ -70,6 +80,43 @@ func _physics_process(_delta: float) -> void:
 		facing = _snap4(dir)
 	if dir.x != 0.0:
 		$Sprite2D.flip_h = dir.x < 0.0
+	# FIX 2026-10-12 (Fix 4): jejak gerak agar buff SP terasa secara visual.
+	if speed_mult > 1.0 and dir.length() > 0.1:
+		_trail_timer -= _delta
+		if _trail_timer <= 0.0:
+			_trail_timer = 0.09
+			_spawn_trail_ghost()
+	else:
+		_trail_timer = 0.0
+
+
+## Ghost kapsul memudar di posisi terakhir — efek "ngebut" saat buff SP aktif.
+func _spawn_trail_ghost() -> void:
+	var parent := get_parent()
+	if parent == null:
+		return
+	var g := TrailGhost.new()
+	parent.add_child(g)
+	g.global_position = global_position
+
+
+class TrailGhost extends Node2D:
+	var life := 0.35
+	const MAX_LIFE := 0.35
+
+	func _process(delta: float) -> void:
+		life -= delta
+		if life <= 0.0:
+			queue_free()
+		else:
+			queue_redraw()
+
+	func _draw() -> void:
+		var a := clampf(life / MAX_LIFE, 0.0, 1.0) * 0.45
+		var col := Color(0.45, 0.85, 1.0, a)
+		draw_circle(Vector2(0, -8), 24.0, col)
+		draw_circle(Vector2(0, 8), 24.0, col)
+		draw_rect(Rect2(-24, -8, 48, 16), col)
 
 
 func _snap4(v: Vector2) -> Vector2:

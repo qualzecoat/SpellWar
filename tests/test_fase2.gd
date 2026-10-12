@@ -104,5 +104,30 @@ func _init() -> void:
 	_check(p6.hp == 100, "heal di-clamp ke max_hp")
 	p6.queue_free()
 
+	# --- FIX 2026-10-12 (Fix 2): EP regen pakai akumulator float ---
+	var p7 = _new_player()
+	p7.ep = 90
+	p7._ep_frac = 0.0
+	p7._process(1.0)  # 5 EP/detik * 1 dtk
+	_check(p7.ep == 95, "regen EP float: 90 + 5 = 95 (tidak terpotong int)")
+	p7._process(0.1)  # +0.5 -> fraksi tersimpan, EP tetap 95
+	_check(p7.ep == 95 and p7._ep_frac > 0.0, "fraksi 0.5 tersimpan, EP tetap 95")
+	p7._process(0.1)  # +0.5 lagi -> genap 1.0 -> EP 96
+	_check(p7.ep == 96, "akumulasi fraksi: 95 + 1 = 96")
+	p7.queue_free()
+
+	# --- FIX 2026-10-12 (Fix 3): trap max concurrent ---
+	var trap_script: GDScript = load("res://scripts/trap.gd")
+	_check(int(trap_script.MAX_CONCURRENT) == 3, "trap MAX_CONCURRENT = 3")
+
+	# --- FIX 2026-10-12 (Fix 5): knockback dummy via velocity (bukan tween) ---
+	var dummy_script: GDScript = load("res://scripts/dummy.gd")
+	var d = dummy_script.new()
+	root.add_child(d)
+	d.apply_knockback(Vector2.RIGHT, 500.0)
+	_check(d._knock_time > 0.0 and d._knockback == Vector2(500, 0),
+		"knockback dummy tersimpan sebagai velocity (hormati collision)")
+	d.queue_free()
+
 	print("Fase2: %d lolos, %d gagal" % [_passed, _failed])
 	quit(_failed)

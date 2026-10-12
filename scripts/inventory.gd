@@ -86,9 +86,11 @@ static func can_form(word: String, counts: Dictionary) -> bool:
 		if int(counts.get(c, 0)) < int(need[c]):
 			return false
 	return true
-## Tiap kata maksimal tercatat sekali (cukup untuk aturan aktif/nonaktif Fase 1).
-func scan_words() -> Dictionary:
-	var found: Dictionary = {}
+## Return Array of {word: String, dir: String ("h"/"v"), cells: Array}.
+## Satu kata BOLEH muncul berkali-kali (untuk stat stacking) — tiap kemunculan
+## tercatat sebagai match terpisah. Cell tidak dipakai ulang dalam arah yang sama.
+func scan_words() -> Array:
+	var found: Array = []
 	var used_h: Dictionary = {}
 	var used_v: Dictionary = {}
 	for word in WordDB.WORDS.keys():
@@ -110,10 +112,10 @@ func scan_words() -> Dictionary:
 						ok = false
 						break
 					cells.append(ci)
-				if ok and not found.has(w):
+				if ok:
 					for ci in cells:
 						used_h[ci] = true
-					found[w] = {"dir": "h", "cells": cells}
+					found.append({"word": w, "dir": "h", "cells": cells})
 				start = at + 1
 		# --- vertikal ---
 		for c in SIZE:
@@ -131,9 +133,9 @@ func scan_words() -> Dictionary:
 						ok = false
 						break
 					cells.append(ci)
-				if ok and not found.has(w):
+				if ok:
 					for ci in cells:
 						used_v[ci] = true
-					found[w] = {"dir": "v", "cells": cells}
+					found.append({"word": w, "dir": "v", "cells": cells})
 				start = at + 1
 	return found

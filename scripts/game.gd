@@ -3,24 +3,20 @@ extends Node2D
 ## combat (pistol/sword/trap), EP, kematian/drop/respawn,
 ## drawer + geser kamera, action button, debug tools.
 
-const DRAWER_SHIFT := 350.0  # = DRAWER_W/2: kamera geser agar karakter di tengah area terlihat
 const RESPAWN_TIME := 30.0
 const PUSH_RANGE := 110.0
 const PUSH_FORCE := 500.0
 
 var inventory: SpellInventory
-var active_words: Dictionary = {}
+var active_matches: Array = []       # Array of {word, dir, cells} — untuk highlight
+var _word_counts: Dictionary = {}    # word -> jumlah kemunculan aktif (stat boleh stack)
 var ui_open := false
-
-var trap_quota := 0
-var trap_place_mode := false
 
 var _interact_available := false   # zona puzzle
 var _exchange_available := false   # zona mesin tukar
 var _exchange_open := false
 var _dead := false
 var _respawn_left := 0.0
-var _trap_preview: Node2D = null
 
 # Sengaja untyped: akses member/sinyal custom tidak dikenal static typing base class.
 @onready var player = $Player
@@ -58,7 +54,8 @@ func _ready() -> void:
 	_on_hp_changed(player.hp, player.max_hp)
 	_on_ep_changed(player.ep, player.max_ep)
 	_spawn_test_dummies()
-	inv_ui.refresh(inventory, active_words)
+	inv_ui.refresh(inventory, active_matches)
+	hud.set_sp_indicator(0)
 	_refresh_interact()
 
 
@@ -68,8 +65,6 @@ func _process(delta: float) -> void:
 		hud.show_respawn(maxi(int(ceil(_respawn_left)), 0))
 		if _respawn_left <= 0.0:
 			_respawn_player()
-	if trap_place_mode:
-		_update_trap_preview()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -79,33 +74,45 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_cancel"):
 		if inv_ui.is_open():
 			close_inventory()
-		elif trap_place_mode:
-			_exit_trap_place_mode()
 
 
 # ---------- inventory & kata ----------
 
 func on_inventory_changed() -> void:
-	inv_ui.refresh(inventory, active_words)
+	inv_ui.refresh(inventory, active_matches)
 	rescan_words()
 
 
+## FIX 2026-10-12 (Fix 4): kata yang sama BOLEH muncul berkali-kali
+## (stat stacking). Efek diterapkan/dicabut per DELTA jumlah kemunculan.
+## Senjata tetap tidak stack (diclamp ke 1).
 func rescan_words() -> void:
-	var found := inventory.scan_words()
-	var removed: Array = []
-	var added: Array = []
-	for w in active_words.keys():
-		if not found.has(w):
-			removed.append(w)
-	for w in found.keys():
-		if not active_words.has(w):
-			added.append(w)
-	active_words = found
-	for w in removed:
-		_remove_word_effect(w)
-	for w in added:
-		_apply_word_effect(w)
-	inv_ui.refresh(inventory, active_words)
+	var matches: Array = inventory.scan_words()
+	var counts: Dictionary = {}
+	for m in matches:
+		var w := str(m["word"])
+		counts[w] = int(counts.get(w, 0)) + 1
+	for w in counts.keys():
+		if str(WordDB.WORDS[w]["kind"]) == "weapon":
+			counts[w] = 1
+	var universe: Dictionary = {}
+	for w in _word_counts.keys():
+		universe[w] = true
+	for w in counts.keys():
+		universe[w] = true
+	for w in universe.keys():
+		var before: int = int(_word_counts.get(w, 0))
+		var after: int = int(counts.get(w, 0))
+		if after > before:
+			for i in range(after - before):
+				_apply_word_effect(w)
+		elif after < before:
+			for i in range(before - after):
+				_remove_word_effect(w)
+	_word_counts = counts
+	active_matches = matches
+	inv_ui.refresh(inventory, active_matches)
+	hud.set_sp_indicator(int(_word_counts.get("SP", 0)))
 
 
 func _apply_word_effect(word: String) -> void:
@@ -115,9 +122,8 @@ func _apply_word_effect(word: String) -> void:
 		"PISTOL":
 			hud.show_weapon("PISTOL")
 		"TRAP":
-			trap_quota = 3
 			hud.show_weapon("TRAP")
-			hud.set_trap_quota(trap_quota)
+			_refresh_trap_count()
 		"HP":
 			player.set_max_hp(player.max_hp + 50)
 			player.heal(50)
@@ -136,10 +142,9 @@ func _remove_word_effect(word: String) -> void:
 		"PISTOL":
 			hud.hide_weapon("PISTOL")
 		"TRAP":
-			_exit_trap_place_mode()
 			_remove_player_traps()
-			trap_quota = 0
 			hud.hide_weapon("TRAP")
+			_refresh_trap_count()
 		"HP":
 			player.set_max_hp(player.max_hp - 50)
 		"EP":
@@ -183,11 +188,9 @@ func _on_weapon_pressed(weapon: String) -> void:
 				return
 			SpellProjectile.spawn(self, player.position, player.facing, player)
 		"TRAP":
-			# Tap 1: masuk mode pasang. Tap 2 (dalam mode): pasang di posisi.
-			if trap_place_mode:
-				_place_trap_here()
-			else:
-				_enter_trap_place_mode()
+			# FIX 2026-10-12 (Fix 3): tanpa mode pasang — tap langsung
+			# pasang trap di posisi kaki pemain.
+			_place_trap_now()
 
 
 func _ep_denied() -> void:
@@ -211,66 +214,39 @@ func _melee_damage(amount: int) -> void:
 		nd.take_damage(amount)
 
 
-# ---------- trap: mode pasang ----------
+# ---------- trap: pasang langsung (Fix 3, 2026-10-12) ----------
+## Jumlah = MAKSIMAL trap aktif bersamaan (3), bukan amunisi.
+## Trap meledak -> slot kembali, bisa pasang lagi.
 
-func _enter_trap_place_mode() -> void:
-	if trap_place_mode:
-		return
-	if trap_quota <= 0:
-		hud.show_toast("Jatah trap habis!")
-		return
-	trap_place_mode = true
-	hud.set_trap_place_mode(true)
-	hud.show_toast("Mode pasang: tap TRAP lagi untuk pasang di posisimu")
-	_ensure_trap_preview()
-
-
-func _exit_trap_place_mode() -> void:
-	if not trap_place_mode:
-		return
-	trap_place_mode = false
-	hud.set_trap_place_mode(false)
-	hud.set_trap_quota(trap_quota)
-	if _trap_preview != null:
-		_trap_preview.queue_free()
-		_trap_preview = null
+func _active_trap_count() -> int:
+	var c := 0
+	for n in get_tree().get_nodes_in_group("trap"):
+		var t := n as SpellTrap
+		if t != null and t.owner_node == player and not t.is_queued_for_deletion():
+			c += 1
+	return c
 
 
-func _ensure_trap_preview() -> void:
-	if _trap_preview != null:
-		return
-	_trap_preview = _TrapPreview.new()
-	add_child(_trap_preview)
+func _refresh_trap_count() -> void:
+	hud.set_trap_count(_active_trap_count(), SpellTrap.MAX_CONCURRENT)
 
 
-func _update_trap_preview() -> void:
-	if _trap_preview != null:
-		_trap_preview.position = player.position
+func _on_trap_exploded(_t: SpellTrap) -> void:
+	_refresh_trap_count()
 
 
-func _place_trap_here() -> void:
-	if trap_quota <= 0:
-		hud.show_toast("Jatah trap habis!")
-		_exit_trap_place_mode()
+func _place_trap_now() -> void:
+	if _active_trap_count() >= SpellTrap.MAX_CONCURRENT:
+		hud.show_toast("Trap maksimal!")
 		return
 	if not player.spend_ep(15):
 		_ep_denied()
 		return
-	SpellTrap.place(self, player.position, player)
-	trap_quota -= 1
-	hud.set_trap_quota(trap_quota)
-	hud.show_toast("Trap dipasang! Sisa: %d" % trap_quota)
-	if trap_quota <= 0:
-		_exit_trap_place_mode()
+	var t := SpellTrap.place(self, player.position, player)
+	t.exploded.connect(_on_trap_exploded)
+	_refresh_trap_count()
+	hud.show_toast("Trap dipasang!")
 
-
-class _TrapPreview extends Node2D:
-	func _draw() -> void:
-		draw_arc(Vector2.ZERO, 40.0, 0.0, TAU, 32, Color(1.0, 0.4, 0.35, 0.8), 3.0)
-		draw_arc(Vector2.ZERO, 30.0, 0.0, TAU, 24, Color(1.0, 0.4, 0.35, 0.4), 2.0)
-
-	func _process(_delta: float) -> void:
-		queue_redraw()
 
 
 # ---------- panel & drawer ----------
@@ -299,19 +275,16 @@ func close_inventory() -> void:
 
 
 func _shift_camera(open: bool) -> void:
-	var target := DRAWER_SHIFT if open else 0.0
+	var target := inv_ui.get_drawer_w() * 0.5 if open else 0.0
 	var tw := create_tween()
 	tw.tween_property(camera, "offset:x", target, 0.25).set_trans(Tween.TRANS_CUBIC)
 
 
 func _refresh_weapons() -> void:
-	for w in active_words.keys():
+	for w in _word_counts.keys():
 		if str(WordDB.WORDS[w]["kind"]) == "weapon":
 			hud.show_weapon(w)
-	if trap_place_mode:
-		hud.set_trap_place_mode(true)
-	else:
-		hud.set_trap_quota(trap_quota)
+	_refresh_trap_count()
 
 
 func open_minigame() -> void:
@@ -343,7 +316,6 @@ func open_exchange() -> void:
 		return
 	ui_open = true
 	_exchange_open = true
-	_exit_trap_place_mode()
 	player.input_enabled = false
 	hud.set_interact_visible(false)
 	_shift_camera(true)
@@ -381,7 +353,6 @@ func _on_player_died() -> void:
 	if _dead:
 		return
 	_dead = true
-	_exit_trap_place_mode()
 	if inv_ui.is_open():
 		close_inventory()
 	player.input_enabled = false

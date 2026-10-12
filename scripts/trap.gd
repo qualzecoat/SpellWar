@@ -2,17 +2,21 @@ class_name SpellTrap
 extends Area2D
 ## Jebakan TRAP: dipasang pemain, terpicu saat diinjak damageable LAIN
 ## (pemilik kebal). Efek: 30 damage + slow 50% selama 2 detik.
-## Hilang setelah terpicu sekali. Visibilitas: pemilik selalu melihat penuh;
-## non-pemilik hanya melihat samar dalam radius kecil (150 px).
+## Hilang setelah terpicu sekali. Maksimal 3 trap aktif bersamaan per pemain
+## (bukan amunisi — trap meledak = slot kembali).
+## Visibilitas: PEMILIK SELALU melihat penuh. (Aturan "non-pemilik hanya
+## dalam radius kecil" berlaku per-viewer dan diimplementasikan saat
+## multiplayer/Fase 3 — tiap client me-render pandangannya sendiri.)
 
 const TRIGGER_DAMAGE := 30
 const SLOW_DURATION := 2.0
-const SPOT_RADIUS := 150.0
+const MAX_CONCURRENT := 3
+
+signal exploded(trap: SpellTrap)
 
 var owner_node: Node2D = null
 
 var _triggered := false
-var _last_bucket := -1
 
 
 static func place(parent: Node, at: Vector2, owner: Node2D) -> SpellTrap:
@@ -59,38 +63,7 @@ func _on_body_entered(body: Node2D) -> void:
 	body.take_damage(TRIGGER_DAMAGE)
 	if body.has_method("apply_slow"):
 		body.apply_slow(SLOW_DURATION)
+	exploded.emit(self)
 	var tw := create_tween()
 	tw.tween_property(self, "modulate:a", 0.0, 0.25)
 	tw.tween_callback(queue_free)
-
-
-func _process(_delta: float) -> void:
-	# Visibilitas untuk non-pemilik: samar hanya dalam radius kecil.
-	# (Fase 2 solo: pemilik = pemain, selalu terlihat penuh.)
-	var nearest := _nearest_foe_dist()
-	var alpha := 1.0
-	if nearest >= 0.0:
-		alpha = 0.45 if nearest <= SPOT_RADIUS else 0.0
-	var bucket := int(alpha * 10.0)
-	if bucket != _last_bucket:
-		_last_bucket = bucket
-		modulate.a = alpha
-		queue_redraw()
-
-
-func _nearest_foe_dist() -> float:
-	var best := -1.0
-	var tree := get_tree()
-	if tree == null:
-		return best
-	for n in tree.get_nodes_in_group("damageable"):
-		var nd := n as Node2D
-		if nd == null or nd == owner_node:
-			continue
-		var alive_prop = nd.get("alive")
-		if alive_prop != null and not bool(alive_prop):
-			continue
-		var d := global_position.distance_to(nd.global_position)
-		if best < 0.0 or d < best:
-			best = d
-	return best
