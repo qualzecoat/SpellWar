@@ -276,7 +276,7 @@ class _TrapPreview extends Node2D:
 # ---------- panel & drawer ----------
 
 func open_inventory() -> void:
-	if ui_open:
+	if ui_open or _dead:
 		return
 	ui_open = true
 	# Fase 2: saat drawer terbuka pemain TETAP BISA GERAK, tapi tidak bisa action.
