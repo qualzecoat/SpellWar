@@ -12,8 +12,8 @@ var _interact_available := false
 # tidak dikenal oleh static typing base class Godot.
 @onready var player = $Player
 @onready var hud = $HUD
-@onready var inv_ui = $InventoryPanel
-@onready var minigame = $MinigamePanel
+@onready var inv_ui = $HUD/InventoryPanel
+@onready var minigame = $HUD/MinigamePanel
 @onready var map = $Map
 
 

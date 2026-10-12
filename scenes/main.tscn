@@ -124,7 +124,7 @@ theme_override_font_sizes/font_size = 26
 text = ""
 horizontal_alignment = 1
 
-[node name="InventoryPanel" type="Control" parent="."]
+[node name="InventoryPanel" type="Control" parent="HUD"]
 visible = false
 anchors_preset = 15
 anchor_right = 1.0
@@ -133,7 +133,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("5_inv")
 
-[node name="MinigamePanel" type="Control" parent="."]
+[node name="MinigamePanel" type="Control" parent="HUD"]
 visible = false
 anchors_preset = 15
 anchor_right = 1.0
