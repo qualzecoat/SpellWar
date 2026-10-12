@@ -8,6 +8,7 @@ const DRAWER_W := 700.0
 const CELL_PX := 56.0
 
 var game = null  # di-set oleh game.gd; punya inventory, on_inventory_changed(), close_inventory()
+var exchange = null  # ExchangePanel, di-set oleh game.gd (untuk drop antar-panel)
 
 var _cells: Array = []
 var _active_list: VBoxContainer
@@ -16,6 +17,7 @@ var _drawer: Panel
 var _is_open := false
 var _dragging := false
 var _drag_from := -1
+var _drag_payload: Dictionary = {}  # {kind: "inv"|"source"|"payment", from/slot, origin, letter}
 var _drag_label: Label = null
 var _style_normal: StyleBoxFlat
 var _style_word: StyleBoxFlat
@@ -196,13 +198,42 @@ func _on_cell_gui_input(event: InputEvent, idx: int) -> void:
 			if game.inventory.grid[idx] != null:
 				_dragging = true
 				_drag_from = idx
-				_drag_label = Label.new()
-				_drag_label.text = str(game.inventory.grid[idx])
-				_drag_label.add_theme_font_size_override("font_size", 34)
-				_drag_label.add_theme_color_override("font_color", Color(1, 1, 1))
-				_drag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				add_child(_drag_label)
+				_drag_payload = {"kind": "inv", "from": idx, "letter": str(game.inventory.grid[idx])}
+				_make_drag_label(str(game.inventory.grid[idx]))
 				accept_event()
+
+
+## Mulai drag dari slot panel mesin (dipanggil exchange_ui).
+## payload: {kind: "source"|"payment", slot: int, origin: int}
+func begin_external_drag(letter: String, payload: Dictionary) -> void:
+	if _dragging:
+		return
+	_dragging = true
+	_drag_from = -1
+	_drag_payload = payload.duplicate()
+	_drag_payload["letter"] = letter
+	_make_drag_label(letter)
+
+
+## Batalkan drag yang sedang berjalan; kembalikan huruf ke slot asalnya.
+func cancel_drag() -> void:
+	if not _dragging:
+		return
+	var kind := str(_drag_payload.get("kind", "inv"))
+	if kind != "inv" and exchange != null:
+		exchange.place_in_slot(kind, int(_drag_payload.get("slot", -1)),
+			str(_drag_payload.get("letter", "")),
+			int(_drag_payload.get("origin", -1)))
+	_end_drag()
+
+
+func _make_drag_label(letter: String) -> void:
+	_drag_label = Label.new()
+	_drag_label.text = letter
+	_drag_label.add_theme_font_size_override("font_size", 34)
+	_drag_label.add_theme_color_override("font_color", Color(1, 1, 1))
+	_drag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_drag_label)
 
 
 func _input(event: InputEvent) -> void:
@@ -231,14 +262,49 @@ func _finish_drag() -> void:
 		_end_drag()
 		return
 	var mp := get_global_mouse_position()
+	var kind := str(_drag_payload.get("kind", "inv"))
+	var letter := str(_drag_payload.get("letter", ""))
+	# 1. Drop ke cell inventory?
 	var target := -1
 	for i in _cells.size():
 		if (_cells[i] as Control).get_global_rect().has_point(mp):
 			target = i
 			break
-	if target != -1 and target != _drag_from:
-		game.inventory.move_letter(_drag_from, target)
-		game.on_inventory_changed()
+	if target != -1:
+		if kind == "inv":
+			var from_idx: int = _drag_payload["from"]
+			if target != from_idx:
+				game.inventory.move_letter(from_idx, target)
+				game.on_inventory_changed()
+		else:
+			# Dari slot mesin -> cell inventory (swap jika terisi).
+			var cell_v = game.inventory.grid[target]
+			game.inventory.grid[target] = letter
+			if cell_v != null:
+				exchange.place_in_slot(kind, int(_drag_payload["slot"]), str(cell_v), target)
+			else:
+				exchange.clear_slot(kind, int(_drag_payload["slot"]))
+			game.on_inventory_changed()
+		_end_drag()
+		return
+	# 2. Drop ke slot mesin?
+	if exchange != null and exchange.is_open():
+		var origin := -1
+		if kind == "inv":
+			origin = int(_drag_payload["from"])
+		else:
+			origin = int(_drag_payload.get("origin", -1))
+		if exchange.try_drop_slot(mp, letter, origin, kind):
+			if kind == "inv":
+				game.inventory.grid[origin] = null
+			# kind mesin: slot asal sudah dikosongkan saat drag dimulai
+			game.on_inventory_changed()
+			_end_drag()
+			return
+	# 3. Tidak kena apa-apa -> kembalikan ke asal.
+	if kind != "inv" and exchange != null:
+		exchange.place_in_slot(kind, int(_drag_payload["slot"]), letter,
+			int(_drag_payload.get("origin", -1)))
 	_end_drag()
 
 

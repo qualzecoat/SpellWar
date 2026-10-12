@@ -5,6 +5,7 @@ extends Node2D
 ## zona puzzle (Area2D -> sinyal untuk tombol interact).
 
 signal puzzle_zone_changed(inside: bool)
+signal exchange_zone_changed(inside: bool)
 
 const WALL_T := 18.0
 const FLOOR_COLOR := Color(0.13, 0.13, 0.18)
@@ -16,6 +17,7 @@ const ROOM_PUZZLE := Rect2(800, -300, 400, 400)      # x 800-1200, y -300-100
 
 const MACHINE_POS := Vector2(1000, 650)
 const PUZZLE_POS := Vector2(1000, -100)
+const EXCHANGE_POS := Vector2(820, 780)
 
 
 func _ready() -> void:
@@ -23,6 +25,7 @@ func _ready() -> void:
 	_build_walls()
 	_build_machine()
 	_build_puzzle_spot()
+	_build_exchange()
 
 
 func _build_floors() -> void:
@@ -135,3 +138,44 @@ func _build_puzzle_spot() -> void:
 func _on_zone_body(body: Node2D, inside: bool) -> void:
 	if body.is_in_group("player"):
 		puzzle_zone_changed.emit(inside)
+
+
+## Mesin Tukar Huruf (Fase 1b): di ruang ekstraksi, pola interaksi sama
+## seperti konsol puzzle (zona -> tombol ACTION/E).
+func _build_exchange() -> void:
+	var body := StaticBody2D.new()
+	body.name = "ExchangeMachine"
+	body.position = EXCHANGE_POS
+	add_child(body)
+	var col := CollisionShape2D.new()
+	var circle := CircleShape2D.new()
+	circle.radius = 42.0
+	col.shape = circle
+	body.add_child(col)
+	var sprite := Sprite2D.new()
+	sprite.texture = load("res://assets/machine.svg")
+	sprite.modulate = Color(0.55, 0.90, 1.0)
+	body.add_child(sprite)
+	var label := Label.new()
+	label.text = "MESIN TUKAR HURUF"
+	label.position = Vector2(-82, 52)
+	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_color_override("font_color", Color(0.55, 0.90, 1.0))
+	body.add_child(label)
+
+	var zone := Area2D.new()
+	zone.name = "ExchangeZone"
+	zone.position = EXCHANGE_POS
+	add_child(zone)
+	var zcol := CollisionShape2D.new()
+	var zrect := RectangleShape2D.new()
+	zrect.size = Vector2(260, 220)
+	zcol.shape = zrect
+	zone.add_child(zcol)
+	zone.body_entered.connect(_on_exchange_zone_body.bind(true))
+	zone.body_exited.connect(_on_exchange_zone_body.bind(false))
+
+
+func _on_exchange_zone_body(body: Node2D, inside: bool) -> void:
+	if body.is_in_group("player"):
+		exchange_zone_changed.emit(inside)

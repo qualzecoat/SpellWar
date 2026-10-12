@@ -7,6 +7,9 @@ var active_words: Dictionary = {}
 var ui_open := false
 
 var _interact_available := false
+var _exchange_available := false
+var _exchange_open := false
+var _suppress_rescan := false
 
 # Sengaja untyped: akses member/sinyal custom (game, open_panel, dsb.)
 # tidak dikenal oleh static typing base class Godot.
@@ -14,6 +17,7 @@ var _interact_available := false
 @onready var hud = $HUD
 @onready var inv_ui = $HUD/InventoryPanel
 @onready var minigame = $HUD/MinigamePanel
+@onready var exchange_ui = $HUD/ExchangePanel
 @onready var map = $Map
 
 
@@ -25,9 +29,14 @@ func _ready() -> void:
 	hud.weapon_pressed.connect(_on_weapon_pressed)
 	hud.interact_pressed.connect(_on_interact_pressed)
 	inv_ui.game = self
+	inv_ui.exchange = exchange_ui
 	inv_ui.closed.connect(close_inventory)
+	exchange_ui.game = self
+	exchange_ui.confirmed.connect(_on_exchange_confirmed)
+	exchange_ui.cancelled.connect(close_exchange)
 	minigame.finished.connect(_on_minigame_finished)
 	map.puzzle_zone_changed.connect(_on_puzzle_zone)
+	map.exchange_zone_changed.connect(_on_exchange_zone)
 	_on_hp_changed(player.hp, player.max_hp)
 	hud.set_ep(player.ep, player.max_ep)
 	inv_ui.refresh(inventory, active_words)
@@ -35,8 +44,11 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
-		if _interact_available and not ui_open:
-			open_minigame()
+		if not ui_open:
+			if _interact_available:
+				open_minigame()
+			elif _exchange_available:
+				open_exchange()
 	elif event.is_action_pressed("ui_cancel"):
 		if inv_ui.is_open():
 			close_inventory()
@@ -45,7 +57,11 @@ func _unhandled_input(event: InputEvent) -> void:
 # ---------- inventory & kata ----------
 
 func on_inventory_changed() -> void:
-	rescan_words()
+	inv_ui.refresh(inventory, active_words)
+	# Saat panel mesin terbuka, huruf di slot dianggap "di tangan":
+	# rescan ditunda sampai panel ditutup/dikonfirmasi (hindari spam toast).
+	if not _suppress_rescan:
+		rescan_words()
 
 
 func rescan_words() -> void:
@@ -100,6 +116,10 @@ func open_inventory() -> void:
 
 
 func close_inventory() -> void:
+	if _exchange_open:
+		close_exchange()
+		return
+	inv_ui.cancel_drag()
 	inv_ui.close_panel()
 	ui_open = false
 	player.input_enabled = true
@@ -124,20 +144,87 @@ func _on_minigame_finished(success: bool) -> void:
 		inventory.add_letters(letters)
 		rescan_words()
 		hud.show_toast("Hadiah: " + " ".join(PackedStringArray(letters)))
-	hud.set_interact_visible(_interact_available)
+	_refresh_interact()
+
+
+# ---------- mesin tukar huruf (Fase 1b) ----------
+
+func open_exchange() -> void:
+	if ui_open:
+		return
+	ui_open = true
+	_exchange_open = true
+	_suppress_rescan = true
+	player.input_enabled = false
+	hud.set_interact_visible(false)
+	inv_ui.open_panel()
+	exchange_ui.open_panel()
+
+
+func close_exchange() -> void:
+	if not _exchange_open:
+		return
+	inv_ui.cancel_drag()
+	exchange_ui.return_all_to_inventory()
+	exchange_ui.close_panel()
+	inv_ui.close_panel()
+	_exchange_open = false
+	_suppress_rescan = false
+	ui_open = false
+	player.input_enabled = true
+	rescan_words()
+	_refresh_interact()
+
+
+func _on_exchange_confirmed(data: Dictionary) -> void:
+	inv_ui.cancel_drag()
+	var pay: Array = data["payment_origins"]
+	SpellExchange.apply(inventory, int(data["source_origin"]), str(data["target"]), pay)
+	exchange_ui.clear_slots()
+	exchange_ui.close_panel()
+	inv_ui.close_panel()
+	_exchange_open = false
+	_suppress_rescan = false
+	ui_open = false
+	player.input_enabled = true
+	rescan_words()
+	hud.show_toast("Tukar: %s jadi %s!" % [str(data["source_letter"]), str(data["target"])])
+	_refresh_interact()
 
 
 # ---------- interaksi ----------
 
+func _refresh_interact() -> void:
+	if ui_open:
+		hud.set_interact_visible(false)
+		return
+	if _interact_available:
+		hud.set_interact_text("PUZZLE (E)")
+		hud.set_interact_visible(true)
+	elif _exchange_available:
+		hud.set_interact_text("TUKAR (E)")
+		hud.set_interact_visible(true)
+	else:
+		hud.set_interact_visible(false)
+
+
 func _on_puzzle_zone(inside: bool) -> void:
 	_interact_available = inside
-	if not ui_open:
-		hud.set_interact_visible(inside)
+	_refresh_interact()
+
+
+func _on_exchange_zone(inside: bool) -> void:
+	_exchange_available = inside
+	_refresh_interact()
 
 
 func _on_interact_pressed() -> void:
-	if _interact_available and not ui_open:
+	if ui_open:
+		return
+	if _interact_available:
 		open_minigame()
+	elif _exchange_available:
+		open_exchange()
 
 
 func _on_weapon_pressed() -> void:

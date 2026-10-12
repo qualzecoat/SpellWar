@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/hud.gd" id="4_hud"]
 [ext_resource type="Script" path="res://scripts/inventory_ui.gd" id="5_inv"]
 [ext_resource type="Script" path="res://scripts/minigame_wires.gd" id="6_mini"]
+[ext_resource type="Script" path="res://scripts/exchange_ui.gd" id="9_exch"]
 [ext_resource type="Script" path="res://scripts/joystick.gd" id="7_joy"]
 [ext_resource type="Texture2D" path="res://assets/player.svg" id="8_sprite"]
 
@@ -141,3 +142,12 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("6_mini")
+
+[node name="ExchangePanel" type="Control" parent="HUD"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("9_exch")

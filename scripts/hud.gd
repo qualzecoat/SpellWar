@@ -60,6 +60,10 @@ func set_interact_visible(v: bool) -> void:
 	interact_button.visible = v
 
 
+func set_interact_text(t: String) -> void:
+	interact_button.text = t
+
+
 func show_toast(text: String) -> void:
 	toast_label.text = text
 	toast_label.modulate.a = 1.0
