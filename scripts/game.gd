@@ -180,16 +180,13 @@ func _on_exchange_confirmed(data: Dictionary) -> void:
 	inv_ui.cancel_drag()
 	var pay: Array = data["payment_origins"]
 	SpellExchange.apply(inventory, int(data["source_origin"]), str(data["target"]), pay)
+	# FIX 2026-10-12: menu SENGAJA tetap terbuka setelah tukar berhasil —
+	# player menutup sendiri via Batal/kembali/tombol inventory.
+	# Slot dikosongkan (sumber sudah berubah di inventory, bayar hangus),
+	# biaya dihitung ulang -> siap untuk penukaran berikutnya.
 	exchange_ui.clear_slots()
-	exchange_ui.close_panel()
-	inv_ui.close_panel()
-	_exchange_open = false
-	_suppress_rescan = false
-	ui_open = false
-	player.input_enabled = true
 	rescan_words()
 	hud.show_toast("Tukar: %s jadi %s!" % [str(data["source_letter"]), str(data["target"])])
-	_refresh_interact()
 
 
 # ---------- interaksi ----------

@@ -233,6 +233,11 @@ func _make_drag_label(letter: String) -> void:
 	_drag_label.add_theme_font_size_override("font_size", 34)
 	_drag_label.add_theme_color_override("font_color", Color(1, 1, 1))
 	_drag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# FIX 2026-10-12: ghost drag harus selalu render DI ATAS semua UI
+	# (termasuk panel mesin lain seperti ExchangePanel yang merupakan sibling
+	# dan digambar belakangan). z absolut dalam CanvasLayer yang sama.
+	_drag_label.z_as_relative = false
+	_drag_label.z_index = 4096
 	add_child(_drag_label)
 
 

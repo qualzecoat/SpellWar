@@ -219,19 +219,31 @@ func return_all_to_inventory() -> void:
 
 # ---------- protokol drag (dipanggil inventory_ui) ----------
 
-## Coba jatuhkan huruf ke slot (sumber dulu, lalu pembayaran yang terlihat & kosong).
+## Coba jatuhkan huruf ke slot (sumber dulu, lalu area pembayaran).
 ## from_kind: "inv" | "source" | "payment".
+## Pembayaran: cukup drop di AREA kotak pembayaran (bukan harus tepat per kotak)
+## -> huruf otomatis masuk ke KOTAK KOSONG PALING KIRI.
 func try_drop_slot(mp: Vector2, letter: String, origin: int, _from_kind: String) -> bool:
 	if _source.is_empty() and (_source_btn as Control).get_global_rect().has_point(mp):
 		_source = {"letter": letter, "origin": origin}
 		_after_change()
 		return true
-	for i in _cost:
-		if i < _pay_btns.size() and (_payments[i] as Dictionary).is_empty():
-			if (_pay_btns[i] as Control).get_global_rect().has_point(mp):
-				_payments[i] = {"letter": letter, "origin": origin}
-				_after_change()
-				return true
+	if _cost > 0:
+		var area := Rect2()
+		var has_area := false
+		for i in _cost:
+			var r := (_pay_btns[i] as Control).get_global_rect()
+			if not has_area:
+				area = r
+				has_area = true
+			else:
+				area = area.merge(r)
+		if has_area and area.has_point(mp):
+			for i in _cost:
+				if (_payments[i] as Dictionary).is_empty():
+					_payments[i] = {"letter": letter, "origin": origin}
+					_after_change()
+					return true
 	return false
 
 
