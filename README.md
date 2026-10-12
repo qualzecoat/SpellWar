@@ -35,3 +35,16 @@ server/    (Fase 3) konfigurasi & script dedicated server
 
 Fase 0: project awal — 1 scene, 1 karakter placeholder yang bisa digerakkan
 (WASD/panah), kamera mengikuti pemain.
+
+Fase 1: prototipe solo — map v1 (ruang ekstraksi + koridor + ruang puzzle,
+dinding collision), minigame "sambung kabel" (hadiah 5 huruf A-Z), inventory
+8x8 drag-drop + deteksi kata (SWORD, HP) + efek kata, HUD (bar HP/EP, tombol
+inventory, joystick virtual, tombol senjata, tombol interact), export web di
+https://spellwar.aditiamh.my.id
+
+## Uji logika (headless, tanpa buka editor)
+
+```
+godot --headless --path . -s res://tests/test_inventory.gd
+```
+Exit code 0 = semua uji lolos.

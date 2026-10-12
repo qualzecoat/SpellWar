@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="72" viewBox="0 0 96 72">
+  <!-- Konsol puzzle placeholder -->
+  <rect x="6" y="8" width="84" height="56" rx="8" fill="#1f3a5f" stroke="#5b8dd9" stroke-width="4"/>
+  <rect x="16" y="18" width="64" height="20" rx="4" fill="#0d1b2e"/>
+  <circle cx="26" cy="50" r="6" fill="#e74c3c"/>
+  <circle cx="44" cy="50" r="6" fill="#f1c40f"/>
+  <circle cx="62" cy="50" r="6" fill="#2ecc71"/>
+</svg>
