@@ -9,7 +9,6 @@ var ui_open := false
 var _interact_available := false
 var _exchange_available := false
 var _exchange_open := false
-var _suppress_rescan := false
 
 # Sengaja untyped: akses member/sinyal custom (game, open_panel, dsb.)
 # tidak dikenal oleh static typing base class Godot.
@@ -57,11 +56,13 @@ func _unhandled_input(event: InputEvent) -> void:
 # ---------- inventory & kata ----------
 
 func on_inventory_changed() -> void:
+	# FIX 2026-10-12: deteksi kata + highlight + efek SELALU jalan live
+	# setiap ada perubahan grid, di SEMUA konteks panel (inventory biasa,
+	# panel mesin tukar, nanti panel ekstraksi). rescan_words() berbasis
+	# diff (toast hanya saat kata benar-benar terbentuk/pecah), jadi aman
+	# dipanggil setiap perubahan tanpa spam.
 	inv_ui.refresh(inventory, active_words)
-	# Saat panel mesin terbuka, huruf di slot dianggap "di tangan":
-	# rescan ditunda sampai panel ditutup/dikonfirmasi (hindari spam toast).
-	if not _suppress_rescan:
-		rescan_words()
+	rescan_words()
 
 
 func rescan_words() -> void:
@@ -154,7 +155,6 @@ func open_exchange() -> void:
 		return
 	ui_open = true
 	_exchange_open = true
-	_suppress_rescan = true
 	player.input_enabled = false
 	hud.set_interact_visible(false)
 	inv_ui.open_panel()
@@ -169,7 +169,6 @@ func close_exchange() -> void:
 	exchange_ui.close_panel()
 	inv_ui.close_panel()
 	_exchange_open = false
-	_suppress_rescan = false
 	ui_open = false
 	player.input_enabled = true
 	rescan_words()
