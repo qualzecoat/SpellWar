@@ -19,6 +19,12 @@ const MACHINE_POS := Vector2(1000, 650)
 const PUZZLE_POS := Vector2(1000, -100)
 const EXCHANGE_POS := Vector2(820, 780)
 
+# Fase 2: titik spawn pemain & spot boneka latihan.
+const SPAWN_POS := Vector2(1000, 300)          # tengah koridor
+const DUMMY_SPOT := Vector2(1230, 840)         # sudut ruang ekstraksi (diam)
+const DUMMY_PATROL_A := Vector2(1000, 150)      # koridor utara
+const DUMMY_PATROL_B := Vector2(1000, 350)      # koridor selatan
+
 
 func _ready() -> void:
 	_build_floors()

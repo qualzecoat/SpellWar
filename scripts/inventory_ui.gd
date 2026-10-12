@@ -13,6 +13,7 @@ var exchange = null  # ExchangePanel, di-set oleh game.gd (untuk drop antar-pane
 var _cells: Array = []
 var _active_list: VBoxContainer
 var _word_list: VBoxContainer
+var _word_labels: Dictionary = {}  # kata -> Label (untuk highlight "bisa dibentuk")
 var _drawer: Panel
 var _is_open := false
 var _dragging := false
@@ -110,9 +111,14 @@ func _build() -> void:
 	words_title.text = "Daftar kata:"
 	words_title.add_theme_font_size_override("font_size", 20)
 	left.add_child(words_title)
+	var word_scroll := ScrollContainer.new()
+	word_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	word_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	left.add_child(word_scroll)
 	_word_list = VBoxContainer.new()
 	_word_list.add_theme_constant_override("separation", 4)
-	left.add_child(_word_list)
+	_word_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	word_scroll.add_child(_word_list)
 	for word in WordDB.WORDS.keys():
 		var lbl := Label.new()
 		lbl.text = word + "\n" + str(WordDB.DESCRIPTIONS.get(word, ""))
@@ -120,6 +126,7 @@ func _build() -> void:
 		lbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))
 		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_word_list.add_child(lbl)
+		_word_labels[word] = lbl
 
 	var grid := GridContainer.new()
 	grid.columns = 8
@@ -189,6 +196,16 @@ func refresh(inventory: SpellInventory, active_words: Dictionary) -> void:
 		lbl.add_theme_font_size_override("font_size", 22)
 		lbl.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6))
 		_active_list.add_child(lbl)
+	# Highlight kata yang BISA dibentuk dari huruf saat ini (hint, bukan aktif).
+	var counts := inventory.letter_counts()
+	for word in _word_labels.keys():
+		var wlbl: Label = _word_labels[word]
+		if active_words.has(word):
+			wlbl.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6))
+		elif SpellInventory.can_form(str(word), counts):
+			wlbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.45))
+		else:
+			wlbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))
 
 
 func _on_cell_gui_input(event: InputEvent, idx: int) -> void:

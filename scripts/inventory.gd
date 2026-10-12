@@ -65,7 +65,27 @@ func _col_string(col: int) -> String:
 	return s
 
 
-## Scan seluruh grid. Return {kata: {"dir": "h"/"v", "cells": Array[int]}}.
+## Hitung jumlah tiap huruf di grid. Return {huruf: jumlah}.
+func letter_counts() -> Dictionary:
+	var counts: Dictionary = {}
+	for v in grid:
+		if v != null:
+			var k := str(v)
+			counts[k] = int(counts.get(k, 0)) + 1
+	return counts
+
+
+## Apakah kata bisa dibentuk dari huruf yang ada (berdasar jumlah huruf)?
+## Aproksimasi untuk hint; deteksi pasti tetap via scan_words().
+static func can_form(word: String, counts: Dictionary) -> bool:
+	var need: Dictionary = {}
+	for k in word.length():
+		var c := word.substr(k, 1)
+		need[c] = int(need.get(c, 0)) + 1
+	for c in need.keys():
+		if int(counts.get(c, 0)) < int(need[c]):
+			return false
+	return true
 ## Tiap kata maksimal tercatat sekali (cukup untuk aturan aktif/nonaktif Fase 1).
 func scan_words() -> Dictionary:
 	var found: Dictionary = {}

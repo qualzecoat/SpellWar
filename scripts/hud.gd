@@ -1,10 +1,13 @@
 extends CanvasLayer
-## HUD Fase 1: bar HP/EP, tombol inventory, tombol senjata, tombol interact,
-## joystick virtual, toast notifikasi.
+## HUD Fase 2: bar HP/EP (+angka), tombol inventory, 3 tombol senjata
+## (SWORD/PISTOL/TRAP — muncul hanya jika katanya terbentuk),
+## tombol interact kontekstual, joystick virtual, toast, label respawn,
+## tombol debug.
 
 signal inventory_pressed
-signal weapon_pressed
+signal weapon_pressed(weapon: String)
 signal interact_pressed
+signal debug_toggled
 
 # Sengaja untyped (lihat catatan di game.gd).
 @onready var hp_bar = $TopLeft/HPRow/HPBar
@@ -12,18 +15,31 @@ signal interact_pressed
 @onready var ep_bar = $TopLeft/EPRow/EPBar
 @onready var ep_label = $TopLeft/EPRow/EPBar/ValueLabel
 @onready var inventory_button = $InventoryButton
-@onready var weapon_button = $WeaponButton
+@onready var sword_button = $SwordButton
+@onready var pistol_button = $PistolButton
+@onready var trap_button = $TrapButton
 @onready var interact_button = $InteractButton
 @onready var joystick = $Joystick
 @onready var toast_label = $ToastLabel
+@onready var respawn_label = $RespawnLabel
+@onready var debug_button = $DebugButton
+@onready var debug_panel = $DebugPanel
+
+var _actions_enabled := true
 
 
 func _ready() -> void:
 	inventory_button.pressed.connect(func() -> void: inventory_pressed.emit())
-	weapon_button.pressed.connect(func() -> void: weapon_pressed.emit())
+	sword_button.pressed.connect(func() -> void: weapon_pressed.emit("SWORD"))
+	pistol_button.pressed.connect(func() -> void: weapon_pressed.emit("PISTOL"))
+	trap_button.pressed.connect(func() -> void: weapon_pressed.emit("TRAP"))
 	interact_button.pressed.connect(func() -> void: interact_pressed.emit())
-	weapon_button.visible = false
+	debug_button.pressed.connect(func() -> void: debug_toggled.emit())
+	sword_button.visible = false
+	pistol_button.visible = false
+	trap_button.visible = false
 	interact_button.visible = false
+	respawn_label.visible = false
 	_style_bar(hp_bar, Color(0.90, 0.28, 0.28))
 	_style_bar(ep_bar, Color(0.28, 0.58, 0.95))
 
@@ -52,20 +68,81 @@ func set_ep(ep: int, max_ep: int) -> void:
 	ep_label.text = "%d/%d" % [ep, max_ep]
 
 
-func show_weapon() -> void:
-	weapon_button.visible = true
+## EP kurang: bar berkedip + tombol bergoyang.
+func flash_ep() -> void:
+	var tw := create_tween()
+	for i in 3:
+		tw.tween_property(ep_bar, "modulate:a", 0.3, 0.08)
+		tw.tween_property(ep_bar, "modulate:a", 1.0, 0.08)
 
 
-func hide_weapon() -> void:
-	weapon_button.visible = false
+func show_weapon(weapon: String) -> void:
+	match weapon:
+		"SWORD":
+			sword_button.visible = _actions_enabled
+		"PISTOL":
+			pistol_button.visible = _actions_enabled
+		"TRAP":
+			trap_button.visible = _actions_enabled
+			# Teks quota diurus game.gd via set_trap_quota (jangan reset di sini).
+
+
+func hide_weapon(weapon: String) -> void:
+	match weapon:
+		"SWORD":
+			sword_button.visible = false
+		"PISTOL":
+			pistol_button.visible = false
+		"TRAP":
+			trap_button.visible = false
+
+
+func set_trap_quota(n: int) -> void:
+	trap_button.text = "TRAP (%d)" % n
+
+
+func set_trap_place_mode(active: bool) -> void:
+	if active:
+		trap_button.text = "PASANG!"
+	else:
+		pass  # teks quota diurus game.gd via set_trap_quota
+
+
+## Saat drawer inventory terbuka: action dimatikan (tombol disembunyikan),
+## tapi joystick/gerak tetap jalan.
+func set_actions_enabled(v: bool) -> void:
+	_actions_enabled = v
+	if not v:
+		sword_button.visible = false
+		pistol_button.visible = false
+		trap_button.visible = false
+		interact_button.visible = false
+	# Saat dinyalakan lagi, game.gd memanggil refresh via show_weapon ulang.
 
 
 func set_interact_visible(v: bool) -> void:
-	interact_button.visible = v
+	interact_button.visible = v and _actions_enabled
 
 
 func set_interact_text(t: String) -> void:
 	interact_button.text = t
+
+
+## Interact tersedia: tombol menyala (highlight). Tidak ada: redup (mode dorong).
+func set_interact_highlighted(active: bool) -> void:
+	if active:
+		interact_button.modulate = Color(1.0, 1.0, 1.0)
+	else:
+		interact_button.modulate = Color(1.0, 1.0, 1.0, 0.55)
+
+
+func show_respawn(seconds: int) -> void:
+	respawn_label.visible = true
+	respawn_label.text = "Respawn: %d" % seconds
+
+
+func hide_respawn() -> void:
+	respawn_label.visible = false
 
 
 func show_toast(text: String) -> void:

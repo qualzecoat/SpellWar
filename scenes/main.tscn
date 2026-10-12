@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/minigame_wires.gd" id="6_mini"]
 [ext_resource type="Script" path="res://scripts/exchange_ui.gd" id="9_exch"]
 [ext_resource type="Script" path="res://scripts/joystick.gd" id="7_joy"]
+[ext_resource type="Script" path="res://scripts/debug_panel.gd" id="10_dbg"]
 [ext_resource type="Texture2D" path="res://assets/player.svg" id="8_sprite"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_player"]
@@ -20,7 +21,7 @@ script = ExtResource("1_game")
 script = ExtResource("3_map")
 
 [node name="Player" type="CharacterBody2D" parent="."]
-position = Vector2(1000, 800)
+position = Vector2(1000, 300)
 script = ExtResource("2_player")
 
 [node name="Sprite2D" type="Sprite2D" parent="Player"]
@@ -108,16 +109,76 @@ offset_bottom = 64.0
 theme_override_font_sizes/font_size = 20
 text = "INVENTORY"
 
-[node name="WeaponButton" type="Button" parent="HUD"]
+[node name="SwordButton" type="Button" parent="HUD"]
 visible = false
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -126.0
-offset_top = 200.0
+offset_top = 140.0
 offset_right = -36.0
-offset_bottom = 280.0
+offset_bottom = 220.0
 theme_override_font_sizes/font_size = 22
 text = "SWORD"
+
+[node name="PistolButton" type="Button" parent="HUD"]
+visible = false
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -126.0
+offset_top = 230.0
+offset_right = -36.0
+offset_bottom = 310.0
+theme_override_font_sizes/font_size = 22
+text = "PISTOL"
+
+[node name="TrapButton" type="Button" parent="HUD"]
+visible = false
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -140.0
+offset_top = 320.0
+offset_right = -36.0
+offset_bottom = 400.0
+theme_override_font_sizes/font_size = 22
+text = "TRAP (3)"
+
+[node name="RespawnLabel" type="Label" parent="HUD"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -60.0
+offset_right = 150.0
+offset_bottom = -10.0
+theme_override_font_sizes/font_size = 36
+theme_override_colors/font_color = Color(1, 0.5, 0.4, 1)
+text = "Respawn: 30"
+horizontal_alignment = 1
+
+[node name="DebugButton" type="Button" parent="HUD"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -80.0
+offset_top = 72.0
+offset_right = -16.0
+offset_bottom = 110.0
+theme_override_font_sizes/font_size = 16
+text = "DBG"
+
+[node name="DebugPanel" type="PanelContainer" parent="HUD"]
+visible = false
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -340.0
+offset_right = -16.0
+offset_bottom = -120.0
+script = ExtResource("10_dbg")
 
 [node name="InteractButton" type="Button" parent="HUD"]
 visible = false
