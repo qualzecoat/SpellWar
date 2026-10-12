@@ -98,7 +98,8 @@ func take_damage(amount: int) -> void:
 	if not alive:
 		return
 	hp = maxi(hp - amount, 0)
-	_bar.value = hp
+	if _bar != null:  # _bar dibuat di _ready; guard untuk konteks tanpa _ready
+		_bar.value = hp
 	_spawn_damage_number(amount)
 	if hp <= 0:
 		_die()

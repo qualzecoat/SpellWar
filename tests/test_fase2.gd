@@ -207,6 +207,9 @@ func _init() -> void:
 	_check(t.armed == false, "trap baru: belum armed (masa arming 3 dtk)")
 	var dd = dummy_script.new()
 	root.add_child(dd)
+	# NOTE: _ready() tidak jalan di konteks SceneTree-test headless
+	# (di game asli jalan normal) -> tambahkan group manual.
+	dd.add_to_group("damageable")
 	var dhp: int = dd.hp
 	t._on_body_entered(dd)  # diinjak saat arming -> tidak boleh meledak
 	_check(t._triggered == false and dd.hp == dhp,
