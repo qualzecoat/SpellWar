@@ -228,7 +228,7 @@ func try_drop_slot(mp: Vector2, letter: String, origin: int, _from_kind: String)
 		return true
 	for i in _cost:
 		if i < _pay_btns.size() and (_payments[i] as Dictionary).is_empty():
-			if ((_pay_btns[i] as Control).get_global_rect().has_point(mp):
+			if (_pay_btns[i] as Control).get_global_rect().has_point(mp):
 				_payments[i] = {"letter": letter, "origin": origin}
 				_after_change()
 				return true
