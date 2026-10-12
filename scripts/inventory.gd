@@ -72,46 +72,48 @@ func scan_words() -> Dictionary:
 	var used_h: Dictionary = {}
 	var used_v: Dictionary = {}
 	for word in WordDB.WORDS.keys():
+		var w: String = word
+		var wlen: int = w.length()
 		# --- horizontal ---
 		for r in SIZE:
 			var line := _row_string(r)
 			var start := 0
 			while true:
-				var at := line.find(word, start)
+				var at := line.find(w, start)
 				if at == -1:
 					break
 				var cells: Array = []
 				var ok := true
-				for k in word.length():
+				for k in wlen:
 					var ci := r * SIZE + at + k
 					if used_h.has(ci):
 						ok = false
 						break
 					cells.append(ci)
-				if ok and not found.has(word):
+				if ok and not found.has(w):
 					for ci in cells:
 						used_h[ci] = true
-					found[word] = {"dir": "h", "cells": cells}
+					found[w] = {"dir": "h", "cells": cells}
 				start = at + 1
 		# --- vertikal ---
 		for c in SIZE:
 			var line := _col_string(c)
 			var start := 0
 			while true:
-				var at := line.find(word, start)
+				var at := line.find(w, start)
 				if at == -1:
 					break
 				var cells: Array = []
 				var ok := true
-				for k in word.length():
+				for k in wlen:
 					var ci := (at + k) * SIZE + c
 					if used_v.has(ci):
 						ok = false
 						break
 					cells.append(ci)
-				if ok and not found.has(word):
+				if ok and not found.has(w):
 					for ci in cells:
 						used_v[ci] = true
-					found[word] = {"dir": "v", "cells": cells}
+					found[w] = {"dir": "v", "cells": cells}
 				start = at + 1
 	return found

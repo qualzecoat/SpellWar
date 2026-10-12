@@ -11,7 +11,7 @@ var max_ep := 100
 
 var facing := Vector2.RIGHT
 var input_enabled := true
-var joystick: Control = null  # di-set oleh game.gd (punya properti `output`)
+var joystick = null  # di-set oleh game.gd; punya properti `output` (untyped, lihat game.gd)
 
 signal hp_changed(hp: int, max_hp: int)
 signal ep_changed(ep: int, max_ep: int)

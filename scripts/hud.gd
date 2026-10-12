@@ -6,13 +6,14 @@ signal inventory_pressed
 signal weapon_pressed
 signal interact_pressed
 
-@onready var hp_bar: ProgressBar = $TopLeft/HPRow/HPBar
-@onready var ep_bar: ProgressBar = $TopLeft/EPRow/EPBar
-@onready var inventory_button: Button = $InventoryButton
-@onready var weapon_button: Button = $WeaponButton
-@onready var interact_button: Button = $InteractButton
-@onready var joystick: Control = $Joystick
-@onready var toast_label: Label = $ToastLabel
+# Sengaja untyped (lihat catatan di game.gd).
+@onready var hp_bar = $TopLeft/HPRow/HPBar
+@onready var ep_bar = $TopLeft/EPRow/EPBar
+@onready var inventory_button = $InventoryButton
+@onready var weapon_button = $WeaponButton
+@onready var interact_button = $InteractButton
+@onready var joystick = $Joystick
+@onready var toast_label = $ToastLabel
 
 
 func _ready() -> void:

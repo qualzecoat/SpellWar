@@ -8,11 +8,13 @@ var ui_open := false
 
 var _interact_available := false
 
-@onready var player: CharacterBody2D = $Player
-@onready var hud: CanvasLayer = $HUD
-@onready var inv_ui: Control = $InventoryPanel
-@onready var minigame: Control = $MinigamePanel
-@onready var map: Node2D = $Map
+# Sengaja untyped: akses member/sinyal custom (game, open_panel, dsb.)
+# tidak dikenal oleh static typing base class Godot.
+@onready var player = $Player
+@onready var hud = $HUD
+@onready var inv_ui = $InventoryPanel
+@onready var minigame = $MinigamePanel
+@onready var map = $Map
 
 
 func _ready() -> void:

@@ -3,7 +3,7 @@ extends Control
 
 signal finished(success: bool)
 
-var _board: Control
+var _board  # WiresBoard, untyped (lihat catatan di game.gd)
 var _status: Label
 var _busy := false
 
