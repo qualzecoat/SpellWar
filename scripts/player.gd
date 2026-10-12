@@ -25,6 +25,9 @@ var _knockback := Vector2.ZERO
 var _knock_time := 0.0
 var _ep_frac := 0.0  # FIX 2026-10-12 (Fix 2): akumulator fraksi regen EP
 var _trail_timer := 0.0
+# FIX 2026-10-13 (akar masalah trail): jejak digambar di _draw() player sendiri.
+var _trail: Array = []
+const TRAIL_MAX_AGE := 0.35
 
 signal hp_changed(hp: int, max_hp: int)
 signal ep_changed(ep: int, max_ep: int)
@@ -38,6 +41,9 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if not alive:
+		if not _trail.is_empty():
+			_trail.clear()
+			queue_redraw()
 		return
 	# Regen EP selalu jalan (di luar combat sekalipun).
 	# FIX 2026-10-12 (Fix 2): pakai akumulator float — int(ep + regen*delta)
@@ -53,6 +59,13 @@ func _process(delta: float) -> void:
 		_ep_frac = 0.0
 	if _slow_time > 0.0:
 		_slow_time -= delta
+	# FIX 2026-10-13: trail menua di sini; digambar di _draw() (di bawah sprite).
+	if not _trail.is_empty():
+		for i in range(_trail.size() - 1, -1, -1):
+			_trail[i]["age"] = float(_trail[i]["age"]) + delta
+			if float(_trail[i]["age"]) >= TRAIL_MAX_AGE:
+				_trail.remove_at(i)
+		queue_redraw()
 
 
 func _physics_process(_delta: float) -> void:
@@ -85,41 +98,29 @@ func _physics_process(_delta: float) -> void:
 		_trail_timer -= _delta
 		if _trail_timer <= 0.0:
 			_trail_timer = 0.09
-			_spawn_trail_ghost()
+			# FIX 2026-10-13: simpan posisi, digambar di _draw() (bukan node ghost).
+			_trail.append({"p": global_position, "age": 0.0})
+			if _trail.size() > 14:
+				_trail.remove_at(0)
 	else:
 		_trail_timer = 0.0
 
 
-## Ghost kapsul memudar di posisi terakhir — efek "ngebut" saat buff SP aktif.
-## FIX 2026-10-13 (Fix 1): ghost sebagai child player + top_level (tetap di
-## posisi spawn, tidak mengikuti pemain) + show_behind_parent (DIJAMIN
-## ter-render DI BELAKANG sprite pemain apa pun z_index-nya — perbaikan
-## z_index kemarin terbukti tidak cukup).
-func _spawn_trail_ghost() -> void:
-	var g := TrailGhost.new()
-	g.top_level = true
-	g.show_behind_parent = true
-	add_child(g)
-	g.global_position = global_position
-
-
-class TrailGhost extends Node2D:
-	var life := 0.35
-	const MAX_LIFE := 0.35
-
-	func _process(delta: float) -> void:
-		life -= delta
-		if life <= 0.0:
-			queue_free()
-		else:
-			queue_redraw()
-
-	func _draw() -> void:
-		var a := clampf(life / MAX_LIFE, 0.0, 1.0) * 0.45
-		var col := Color(0.45, 0.85, 1.0, a)
-		draw_circle(Vector2(0, -8), 24.0, col)
-		draw_circle(Vector2(0, 8), 24.0, col)
-		draw_rect(Rect2(-24, -8, 48, 16), col)
+## FIX 2026-10-13 (akar masalah trail): dua perbaikan sebelumnya gagal karena
+## TrailGhost memakai top_level=true + show_behind_parent=true — kombinasi
+## yang saling meniadakan (top_level mencabut ghost dari rantai draw-order
+## parent, sehingga show_behind_parent tidak punya parent untuk "di belakang").
+## Perbaikan definitif: jejak digambar langsung di _draw() player. Canvas
+## SELALU menggambar _draw() parent SEBELUM children-nya ($Sprite2D), jadi
+## trail dijamin di belakang sprite tanpa mengandalkan z_index apa pun.
+func _draw() -> void:
+	for t in _trail:
+		var k := 1.0 - float(t["age"]) / TRAIL_MAX_AGE
+		var col := Color(0.45, 0.85, 1.0, 0.45 * clampf(k, 0.0, 1.0))
+		var lp: Vector2 = to_local(t["p"])
+		draw_circle(lp + Vector2(0, -8), 24.0, col)
+		draw_circle(lp + Vector2(0, 8), 24.0, col)
+		draw_rect(Rect2(lp + Vector2(-24, -8), Vector2(48, 16)), col)
 
 
 func _snap4(v: Vector2) -> Vector2:
