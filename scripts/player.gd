@@ -91,12 +91,15 @@ func _physics_process(_delta: float) -> void:
 
 
 ## Ghost kapsul memudar di posisi terakhir — efek "ngebut" saat buff SP aktif.
+## FIX 2026-10-13 (Fix 1): ghost sebagai child player + top_level (tetap di
+## posisi spawn, tidak mengikuti pemain) + show_behind_parent (DIJAMIN
+## ter-render DI BELAKANG sprite pemain apa pun z_index-nya — perbaikan
+## z_index kemarin terbukti tidak cukup).
 func _spawn_trail_ghost() -> void:
-	var parent := get_parent()
-	if parent == null:
-		return
 	var g := TrailGhost.new()
-	parent.add_child(g)
+	g.top_level = true
+	g.show_behind_parent = true
+	add_child(g)
 	g.global_position = global_position
 
 

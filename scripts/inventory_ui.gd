@@ -198,12 +198,20 @@ func refresh(inventory: SpellInventory, matches: Array) -> void:
 		lbl.text = "-"
 		lbl.add_theme_font_size_override("font_size", 18)
 		_active_list.add_child(lbl)
-	for word in present.keys():
-		var lbl := Label.new()
-		lbl.text = word
-		lbl.add_theme_font_size_override("font_size", 22)
-		lbl.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6))
-		_active_list.add_child(lbl)
+	# FIX 2026-10-13 (Fix 3): tiap kata aktif tampil sebagai SATU strip
+	# menyatu (huruf-huruf bersambung tanpa gap) + badge "xN" jika stack —
+	# agar jelas huruf mana milik kata apa saat banyak kata aktif.
+	var stack_n: Dictionary = {}
+	for m in matches:
+		var w2 := str(m["word"])
+		stack_n[w2] = int(stack_n.get(w2, 0)) + 1
+	var shown: Dictionary = {}
+	for m in matches:
+		var w3 := str(m["word"])
+		if shown.has(w3):
+			continue
+		shown[w3] = true
+		_active_list.add_child(_make_word_strip(w3, m, inventory, int(stack_n[w3])))
 	# Highlight kata yang BISA dibentuk dari huruf saat ini (hint, bukan aktif).
 	var counts := inventory.letter_counts()
 	for word in _word_labels.keys():
@@ -214,6 +222,43 @@ func refresh(inventory: SpellInventory, matches: Array) -> void:
 			wlbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.45))
 		else:
 			wlbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))
+
+
+## FIX 2026-10-13 (Fix 3): satu kata aktif = satu strip huruf menyatu
+## (tanpa gap antar-huruf), sudut luar membulat; badge "xN" jika stack.
+func _make_word_strip(word: String, m: Dictionary, inventory: SpellInventory, n: int) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 0)
+	var cells: Array = m["cells"]
+	for i in cells.size():
+		var v = inventory.grid[int(cells[i])]
+		var tile := Label.new()
+		tile.text = str(v) if v != null else "?"
+		tile.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tile.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		tile.custom_minimum_size = Vector2(34, 40)
+		tile.add_theme_font_size_override("font_size", 22)
+		tile.add_theme_color_override("font_color", Color(1, 1, 1))
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.16, 0.38, 0.22)
+		sb.border_color = Color(0.35, 0.85, 0.45)
+		sb.set_border_width_all(2)
+		sb.set_corner_radius_all(0)
+		if i == 0:
+			sb.corner_radius_top_left = 8
+			sb.corner_radius_bottom_left = 8
+		if i == cells.size() - 1:
+			sb.corner_radius_top_right = 8
+			sb.corner_radius_bottom_right = 8
+		tile.add_theme_stylebox_override("normal", sb)
+		row.add_child(tile)
+	if n > 1:
+		var badge := Label.new()
+		badge.text = " x%d" % n
+		badge.add_theme_font_size_override("font_size", 20)
+		badge.add_theme_color_override("font_color", Color(1.0, 0.9, 0.45))
+		row.add_child(badge)
+	return row
 
 
 ## Lebar drawer — dipakai game.gd untuk menggeser kamera.

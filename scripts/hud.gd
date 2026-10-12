@@ -17,6 +17,9 @@ signal debug_toggled
 @onready var ep_label = $TopLeft/EPRow/EPBar/ValueLabel
 
 var sp_label: Label = null
+# FIX 2026-10-13 (Fix 6): overlay garis segmentasi bar.
+var _hp_seg: BarSegments = null
+var _ep_seg: BarSegments = null
 @onready var inventory_button = $InventoryButton
 @onready var sword_button = $SwordButton
 @onready var pistol_button = $PistolButton
@@ -45,6 +48,14 @@ func _ready() -> void:
 	respawn_label.visible = false
 	_style_bar(hp_bar, Color(0.90, 0.28, 0.28))
 	_style_bar(ep_bar, Color(0.28, 0.58, 0.95))
+	# FIX 2026-10-13 (Fix 6): garis segmentasi — HP tiap 50, EP tiap 25.
+	# Overlay di belakang ValueLabel (label tetap paling atas).
+	_hp_seg = BarSegments.new()
+	hp_bar.add_child(_hp_seg)
+	hp_bar.move_child(_hp_seg, 0)
+	_ep_seg = BarSegments.new()
+	ep_bar.add_child(_ep_seg)
+	ep_bar.move_child(_ep_seg, 0)
 	# FIX 2026-10-12 (Fix 4): indikator buff SP di bawah bar EP.
 	sp_label = Label.new()
 	sp_label.add_theme_font_size_override("font_size", 18)
@@ -69,15 +80,20 @@ func set_hp(hp: int, max_hp: int) -> void:
 	hp_bar.max_value = max_hp
 	hp_bar.value = hp
 	hp_label.text = "%d/%d" % [hp, max_hp]
+	if _hp_seg != null:
+		_hp_seg.set_params(50.0, float(max_hp))
 
 
 func set_ep(ep: int, max_ep: int) -> void:
 	ep_bar.max_value = max_ep
 	ep_bar.value = ep
 	ep_label.text = "%d/%d" % [ep, max_ep]
+	if _ep_seg != null:
+		_ep_seg.set_params(25.0, float(max_ep))
 
 
-## FIX 2026-10-12 (Fix 4): indikator buff SP, mis. "SP +15%" (stack: +32%).
+## FIX 2026-10-12 (Fix 4): indikator buff SP, mis. "SP +15%" (stack: +30%).
+## FIX 2026-10-13 (Fix 4): ADITIF — 15% per stack (1x=15%, 2x=30%, 3x=45%).
 func set_sp_indicator(stacks: int) -> void:
 	if sp_label == null:
 		return
@@ -85,7 +101,7 @@ func set_sp_indicator(stacks: int) -> void:
 		sp_label.visible = false
 		return
 	sp_label.visible = true
-	var pct := int(round((pow(1.15, stacks) - 1.0) * 100.0))
+	var pct := int(round(0.15 * stacks * 100.0))
 	sp_label.text = "SP +%d%%" % pct
 
 

@@ -11,6 +11,9 @@ var inventory: SpellInventory
 var active_matches: Array = []       # Array of {word, dir, cells} — untuk highlight
 var _word_counts: Dictionary = {}    # word -> jumlah kemunculan aktif (stat boleh stack)
 var ui_open := false
+# FIX 2026-10-13 (Fix 2): state stabilitas kata senjata antar-scan.
+var _weapon_active_key: Dictionary = {}  # word -> key match senjata yang aktif
+var _weapon_prev_keys: Dictionary = {}   # word -> Array key SEMUA match scan lalu
 
 var _interact_available := false   # zona puzzle
 var _exchange_available := false   # zona mesin tukar
@@ -87,8 +90,24 @@ func on_inventory_changed() -> void:
 ## (stat stacking). Efek diterapkan/dicabut per DELTA jumlah kemunculan.
 ## FIX 2026-10-12: senjata tetap tidak stack — hanya match PERTAMA tiap
 ## kata weapon yang aktif (di-highlight + efek); duplikat diabaikan.
+## FIX 2026-10-13 (Fix 2): seleksi senjata STABIL — match yang sedang aktif
+## dipertahankan selama masih ada di scan (tidak pindah ke duplikat baru);
+## duplikat yang baru tersusun -> toast "sudah aktif", tidak merebut status.
 func rescan_words() -> void:
-	var matches: Array = WordDB.filter_weapon_first(inventory.scan_words())
+	var res: Dictionary = WordDB.select_stable_weapons(
+		inventory.scan_words(), _weapon_active_key)
+	var matches: Array = res["selected"]
+	var all_keys: Dictionary = res["all_keys"]
+	for w in res["dup_words"]:
+		var prev: Array = _weapon_prev_keys.get(w, [])
+		var cur: Array = all_keys[w]
+		var active_k := str(res["active_keys"][w])
+		for k in cur:
+			if str(k) != active_k and not prev.has(k):
+				hud.show_toast("%s sudah aktif! Senjata tidak bisa di-stack." % w)
+				break
+	_weapon_active_key = res["active_keys"]
+	_weapon_prev_keys = all_keys
 	var counts: Dictionary = {}
 	for m in matches:
 		var w := str(m["word"])
@@ -129,7 +148,9 @@ func _apply_word_effect(word: String) -> void:
 			player.set_max_ep(player.max_ep + 25)
 			player.add_ep_regen(2.0)
 		"SP":
-			player.speed_mult *= 1.15
+			# FIX 2026-10-13 (Fix 4): ADITIF — 1x=15%, 2x=30%, 3x=45%
+			# (konsisten dengan HP +50/stack & EP +2 regen/stack).
+			player.speed_mult += 0.15
 	hud.show_toast("Kata " + word + " aktif!")
 
 
@@ -149,7 +170,7 @@ func _remove_word_effect(word: String) -> void:
 			player.set_max_ep(player.max_ep - 25)
 			player.add_ep_regen(-2.0)
 		"SP":
-			player.speed_mult /= 1.15
+			player.speed_mult -= 0.15
 	hud.show_toast("Kata " + word + " pecah!")
 
 

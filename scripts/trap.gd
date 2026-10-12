@@ -11,12 +11,18 @@ extends Area2D
 const TRIGGER_DAMAGE := 30
 const SLOW_DURATION := 2.0
 const MAX_CONCURRENT := 3
+## FIX 2026-10-13 (Fix 5): trap butuh 3 detik "arming" setelah dipasang —
+## selama arming TIDAK bisa terpicu siapa pun (mencegah disalahgunakan
+## sebagai serangan jarak dekat: pasang di kaki musuh -> langsung meledak).
+const ARM_TIME := 3.0
 
 signal exploded(trap: SpellTrap)
 
 var owner_node: Node2D = null
+var armed := false
 
 var _triggered := false
+var _arm_left := ARM_TIME
 
 
 static func place(parent: Node, at: Vector2, owner: Node2D) -> SpellTrap:
@@ -39,6 +45,19 @@ func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 
 
+func _process(delta: float) -> void:
+	if armed:
+		return
+	_arm_left -= delta
+	if _arm_left <= 0.0:
+		armed = true
+		modulate.a = 1.0
+	else:
+		# Visual arming: berkedip — sinyal "belum bisa meledak".
+		var t := Time.get_ticks_msec() / 1000.0
+		modulate.a = 0.45 + 0.35 * sin(t * 12.0)
+
+
 func _draw() -> void:
 	# Placeholder: lingkaran merah bergigi (seperti ranjau).
 	var teeth := 12
@@ -53,6 +72,8 @@ func _draw() -> void:
 func _on_body_entered(body: Node2D) -> void:
 	if _triggered:
 		return
+	if not armed:
+		return  # FIX 2026-10-13 (Fix 5): masa arming 3 dtk — belum bisa meledak.
 	if body == owner_node:
 		return
 	if not body.is_in_group("damageable"):

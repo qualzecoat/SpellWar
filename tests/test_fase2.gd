@@ -66,12 +66,12 @@ func _init() -> void:
 	_check(p3.max_hp == 150, "HP pecah 1x -> max 150")
 	p3.queue_free()
 
-	# --- SP speed mult ---
+	# --- SP speed mult (ADITIF — FIX 2026-10-13 Fix 4) ---
 	var p4 = _new_player()
-	p4.speed_mult *= 1.15
-	p4.speed_mult *= 1.15
-	_check(absf(p4.speed_mult - 1.3225) < 0.001, "SP stack 2x -> 1.3225x")
-	p4.speed_mult /= 1.15
+	p4.speed_mult += 0.15
+	p4.speed_mult += 0.15
+	_check(absf(p4.speed_mult - 1.30) < 0.001, "SP stack 2x -> 1.30x (aditif 30%)")
+	p4.speed_mult -= 0.15
 	_check(absf(p4.speed_mult - 1.15) < 0.001, "SP pecah 1x -> 1.15x")
 	p4.queue_free()
 
@@ -169,6 +169,65 @@ func _init() -> void:
 	var f2: Array = words_script.filter_weapon_first(invw.scan_words())
 	_check(f2.size() == 1 and str(f2[0]["dir"]) == "v",
 		"TRAP horizontal pecah -> TRAP vertikal naik jadi aktif")
+
+	# --- FIX 2026-10-13 (Fix 2): seleksi senjata STABIL antar-scan ---
+	var dup2: Array = [
+		{"word": "TRAP", "dir": "h", "cells": [0, 1, 2, 3]},
+		{"word": "TRAP", "dir": "v", "cells": [10, 18, 26, 34]},
+		{"word": "HP", "dir": "h", "cells": [40, 41]},
+	]
+	var r1: Dictionary = words_script.select_stable_weapons(dup2, {})
+	_check((r1["selected"] as Array).size() == 2,
+		"stabil: stat HP + 1 TRAP aktif = 2 selected")
+	_check(str((r1["active_keys"] as Dictionary)["TRAP"]) == words_script.match_key(dup2[0]),
+		"stabil: tanpa state, TRAP pertama jadi aktif")
+	_check((r1["dup_words"] as Array).has("TRAP"),
+		"stabil: TRAP kedua tercatat sebagai duplikat")
+	# State aktif = TRAP vertikal; scan baru urutannya berubah -> tetap vertikal.
+	var active := {"TRAP": words_script.match_key(dup2[1])}
+	var r2: Dictionary = words_script.select_stable_weapons([dup2[1], dup2[0]], active)
+	_check(str((r2["active_keys"] as Dictionary)["TRAP"]) == words_script.match_key(dup2[1]),
+		"stabil: yang aktif dipertahankan walau urutan scan berubah")
+	_check((r2["selected"] as Array).size() == 1,
+		"stabil: hanya 1 TRAP di selected (duplikat tidak aktif)")
+	# Yang aktif pecah -> duplikat yang masih utuh naik jadi aktif.
+	var r3: Dictionary = words_script.select_stable_weapons([dup2[0]], active)
+	_check(str((r3["active_keys"] as Dictionary)["TRAP"]) == words_script.match_key(dup2[0]),
+		"stabil: yang aktif pecah -> duplikat naik jadi aktif")
+	_check(not (r3["dup_words"] as Array).has("TRAP"),
+		"stabil: tinggal 1 match -> bukan duplikat")
+	# Kata hilang total -> state aktif dibersihkan.
+	var r4: Dictionary = words_script.select_stable_weapons([], active)
+	_check(not (r4["active_keys"] as Dictionary).has("TRAP"),
+		"stabil: kata hilang -> state aktif dibersihkan")
+
+	# --- FIX 2026-10-13 (Fix 5): trap arming 3 detik ---
+	var t = trap_script.new()
+	root.add_child(t)
+	_check(t.armed == false, "trap baru: belum armed (masa arming 3 dtk)")
+	var dd = dummy_script.new()
+	root.add_child(dd)
+	var dhp: int = dd.hp
+	t._on_body_entered(dd)  # diinjak saat arming -> tidak boleh meledak
+	_check(t._triggered == false and dd.hp == dhp,
+		"arming: diinjak -> TIDAK meledak, tidak ada damage")
+	t._process(3.1)  # lewati masa arming
+	_check(t.armed == true, "setelah 3 dtk: trap armed")
+	t._on_body_entered(dd)  # diinjak setelah armed -> meledak
+	_check(t._triggered == true and dd.hp == dhp - 30,
+		"armed: diinjak -> meledak, damage 30")
+	dd.queue_free()
+
+	# --- FIX 2026-10-13 (Fix 6): overlay segmentasi bar ---
+	var seg_script: GDScript = load("res://scripts/bar_segments.gd")
+	var seg = seg_script.new()
+	seg.set_params(50.0, 150.0)
+	_check(seg.step == 50.0 and seg.max_value == 150.0,
+		"BarSegments menyimpan step & max")
+	seg.set_params(25.0, 100.0)
+	_check(seg.step == 25.0 and seg.max_value == 100.0,
+		"BarSegments update untuk EP (25/100)")
+	seg.queue_free()
 
 	print("Fase2: %d lolos, %d gagal" % [_passed, _failed])
 	quit(_failed)
