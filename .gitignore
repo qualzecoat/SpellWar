@@ -1,0 +1,9 @@
+# Godot 4+ specific ignores
+.godot/
+
+# Imported translations
+*.translation
+
+# Mono-specific ignores (tidak dipakai, tapi standar)
+.mono/
+data_*/
