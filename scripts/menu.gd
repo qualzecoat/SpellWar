@@ -103,7 +103,6 @@ func _ready() -> void:
 	_add_btn(_lobby_panel, "KELUAR", _on_leave)
 
 	_panels = [_main_panel, _join_panel, _lobby_panel]
-	_show(_main_panel)
 
 	_status = Label.new()
 	_status.add_theme_font_size_override("font_size", 20)
@@ -113,6 +112,8 @@ func _ready() -> void:
 	_status.offset_top = -90
 	_status.offset_bottom = -50
 	add_child(_status)
+
+	_show(_main_panel)
 
 	Net.connected_to_server.connect(func() -> void: _set_status("Terhubung.", false))
 	Net.conn_failed.connect(_on_net_failed)
