@@ -56,8 +56,10 @@ func _init() -> void:
 	_check(NetProto.MIN_PLAYERS == 2 and NetProto.MAX_PLAYERS == 8, "min 2 / max 8 pemain")
 
 	# --- ServerPlayer: efek kata ---
+	# NOTE: _ready() dipanggil manual — di mode -s, _init berjalan sinkron
+	# sebelum tree sempat memicu _ready.
 	var p := ServerPlayer.new()
-	root.add_child(p)
+	p._ready()
 	_fill(p.inv, "SWORD", 0, 0)
 	var ev: Array = p.recompute_words()
 	_check("SWORD" in p.words, "recompute: SWORD aktif")
@@ -84,7 +86,7 @@ func _init() -> void:
 
 	# --- ServerPlayer: validasi grid (anti duplikasi huruf) ---
 	var q := ServerPlayer.new()
-	root.add_child(q)
+	q._ready()
 	q.inv.grid[0] = "A"
 	q.inv.grid[1] = "B"
 	var perm := q.inv.grid.duplicate()

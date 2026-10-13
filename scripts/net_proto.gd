@@ -53,6 +53,6 @@ static func msg(msg_type: String, data: Dictionary = {}) -> String:
 ## Parse pesan JSON. Return {} jika gagal.
 static func parse(text: String) -> Dictionary:
 	var res = JSON.parse_string(text)
-	if res is Dictionary:
+	if res is Dictionary and (res as Dictionary).has("t"):
 		return res
 	return {}
