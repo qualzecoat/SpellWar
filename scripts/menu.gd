@@ -74,7 +74,7 @@ func _ready() -> void:
 	_code_edit.max_length = 6
 	_code_edit.custom_minimum_size = Vector2(280, 48)
 	_code_edit.add_theme_font_size_override("font_size", 28)
-	_code_edit.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_code_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_join_panel.add_child(_code_edit)
 	_add_btn(_join_panel, "GABUNG", _on_join_go)
 	_add_btn(_join_panel, "KEMBALI", func() -> void: _show(_main_panel))
