@@ -312,12 +312,14 @@ func open_minigame() -> void:
 	ui_open = true
 	player.input_enabled = false
 	hud.set_interact_visible(false)
+	hud.set_machine_panel_open(true)  # FIX 2026-10-13: panel di daerah joystick
 	minigame.start_puzzle()
 
 
 func _on_minigame_finished(success: bool) -> void:
 	ui_open = false
 	player.input_enabled = true
+	hud.set_machine_panel_open(false)  # FIX 2026-10-13
 	if success:
 		var letters: Array = []
 		for i in 5:
@@ -337,6 +339,7 @@ func open_exchange() -> void:
 	_exchange_open = true
 	player.input_enabled = false
 	hud.set_interact_visible(false)
+	hud.set_machine_panel_open(true)  # FIX 2026-10-13: panel di daerah joystick
 	_shift_camera(true)
 	inv_ui.open_panel()
 	exchange_ui.open_panel()
@@ -352,6 +355,7 @@ func close_exchange() -> void:
 	_exchange_open = false
 	ui_open = false
 	player.input_enabled = true
+	hud.set_machine_panel_open(false)  # FIX 2026-10-13
 	_shift_camera(false)
 	rescan_words()
 	_refresh_interact()

@@ -32,6 +32,9 @@ var _ep_seg: BarSegments = null
 @onready var debug_panel = $DebugPanel
 
 var _actions_enabled := true
+# FIX 2026-10-13: panel mesin (tukar huruf, minigame) menutupi area joystick.
+# Counter agar joystick selalu kembali tampil setelah SEMUA panel mesin tertutup.
+var _machine_panels := 0
 
 
 func _ready() -> void:
@@ -150,6 +153,19 @@ func set_actions_enabled(v: bool) -> void:
 		trap_button.visible = false
 		interact_button.visible = false
 	# Saat dinyalakan lagi, game.gd memanggil refresh via show_weapon ulang.
+
+
+## FIX 2026-10-13: panel mesin (tukar huruf, minigame/puzzle) tampil di daerah
+## joystick — sembunyikan joystick selama ADA panel mesin terbuka, tampilkan
+## lagi saat semua tertutup. Drawer inventory SAJA tidak memanggil ini
+## (joystick tetap tampil & bisa dipakai). Panel mesin berikutnya (mis.
+## ekstraksi Fase 4) cukup panggil fungsi ini saat buka/tutup.
+func set_machine_panel_open(open: bool) -> void:
+	if open:
+		_machine_panels += 1
+	else:
+		_machine_panels = maxi(0, _machine_panels - 1)
+	joystick.visible = _machine_panels == 0
 
 
 func set_interact_visible(v: bool) -> void:
