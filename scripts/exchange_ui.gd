@@ -202,6 +202,16 @@ func clear_slots() -> void:
 	_refresh_all()
 
 
+## Terapkan grid hasil tukar dari server (dipanggil client MP saat grid_sync
+## dengan exchanged=true): slot dibersihkan, grid diganti penuh dari data
+## otoritatif server. Setelah ini pemanggil me-refresh UI inventory.
+func apply_server_result(inventory: SpellInventory, cells: Array) -> void:
+	clear_slots()
+	for i in SpellInventory.CELLS:
+		var v = cells[i]
+		inventory.grid[i] = str(v) if v != null else null
+
+
 ## Kembalikan semua huruf di slot ke inventory (dipakai saat batal/tutup).
 func return_all_to_inventory() -> void:
 	if game == null:

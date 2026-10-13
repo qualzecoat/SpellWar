@@ -370,7 +370,6 @@ func _init() -> void:
 	# -> grid lokal = hasil tukar, slot bersih, UI grid ter-refresh.
 	# (Regresi: dulu server tidak kirim flag ex -> client ambil cabang else ->
 	#  lubang reserved dipertahankan -> huruf hasil tukar tidak tampil.)
-	var MpGameS = load("res://scripts/mp_game.gd")
 	var mock3 := _MockGame.new()
 	mock3.inventory.grid[5] = "T"
 	mock3.inventory.grid[8] = "O"
@@ -388,7 +387,8 @@ func _init() -> void:
 	# Simulasi grid hasil tukar dari server: T->U (biaya 1), O hangus.
 	var srv_cells: Array = mock3.inventory.grid.duplicate()
 	srv_cells[5] = "U"
-	MpGameS.apply_exchanged_grid(mock3.inventory, ex4, srv_cells)
+	# Persis seperti cabang exchanged di mp_game._on_grid_sync:
+	ex4.apply_server_result(mock3.inventory, srv_cells)
 	iu3.refresh(mock3.inventory, [])
 	_check(str(mock3.inventory.grid[5]) == "U", "exchanged: grid lokal = hasil tukar (U)")
 	_check(mock3.inventory.grid[8] == null, "exchanged: huruf bayar hangus")
