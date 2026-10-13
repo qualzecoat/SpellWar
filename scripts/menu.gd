@@ -184,7 +184,8 @@ func _show(panel: VBoxContainer) -> void:
 
 
 func _is_touch_device() -> bool:
-	return DisplayServer.is_touchscreen_available()
+	return true  # TODO DEBUG SEMENTARA #2: paksa mode touch agar bisa diuji visual di browser desktop (hapus setelah diagnosis)
+	# return DisplayServer.is_touchscreen_available()
 
 
 # Membuat "field palsu" untuk touchscreen: Button yang di-style seperti
