@@ -11,9 +11,8 @@ var game = null  # di-set oleh game.gd; punya inventory, on_inventory_changed(),
 var exchange = null  # ExchangePanel, di-set oleh game.gd (untuk drop antar-panel)
 
 var _cells: Array = []
-var _active_list: VBoxContainer
+var _active_list: HFlowContainer
 var _word_list: VBoxContainer
-var _word_labels: Dictionary = {}  # kata -> Label (untuk highlight "bisa dibentuk")
 var _drawer: Panel
 var _is_open := false
 var _dragging := false
@@ -108,8 +107,9 @@ func _build() -> void:
 	active_title.text = "Kata aktif:"
 	active_title.add_theme_font_size_override("font_size", 20)
 	left.add_child(active_title)
-	_active_list = VBoxContainer.new()
-	_active_list.add_theme_constant_override("separation", 4)
+	_active_list = HFlowContainer.new()
+	_active_list.add_theme_constant_override("h_separation", 8)
+	_active_list.add_theme_constant_override("v_separation", 8)
 	left.add_child(_active_list)
 
 	var words_title := Label.new()
@@ -131,7 +131,6 @@ func _build() -> void:
 		lbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))
 		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_word_list.add_child(lbl)
-		_word_labels[word] = lbl
 
 	var grid := GridContainer.new()
 	grid.columns = 8
@@ -198,9 +197,9 @@ func refresh(inventory: SpellInventory, matches: Array) -> void:
 		lbl.text = "-"
 		lbl.add_theme_font_size_override("font_size", 18)
 		_active_list.add_child(lbl)
-	# FIX 2026-10-13 (Fix 3): tiap kata aktif tampil sebagai SATU strip
-	# menyatu (huruf-huruf bersambung tanpa gap) + badge "xN" jika stack —
-	# agar jelas huruf mana milik kata apa saat banyak kata aktif.
+	# 2026-10-13: tiap kata aktif = SATU badge teks (pil hijau berisi nama kata
+	# putih bold + " ×N" kuning jika stack). Flow/wrap otomatis via
+	# HFlowContainer sehingga kata panjang tidak terpotong.
 	var stack_n: Dictionary = {}
 	for m in matches:
 		var w2 := str(m["word"])
@@ -211,54 +210,46 @@ func refresh(inventory: SpellInventory, matches: Array) -> void:
 		if shown.has(w3):
 			continue
 		shown[w3] = true
-		_active_list.add_child(_make_word_strip(w3, m, inventory, int(stack_n[w3])))
-	# Highlight kata yang BISA dibentuk dari huruf saat ini (hint, bukan aktif).
-	var counts := inventory.letter_counts()
-	for word in _word_labels.keys():
-		var wlbl: Label = _word_labels[word]
-		if present.has(word):
-			wlbl.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6))
-		elif SpellInventory.can_form(str(word), counts):
-			wlbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.45))
-		else:
-			wlbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))
+		_active_list.add_child(_make_word_badge(w3, int(stack_n[w3])))
+	# Daftar kata sengaja selalu statis (tidak highlight saat aktif / bisa
+	# dibentuk) — status aktif sudah ditunjukkan bagian "Kata aktif" di atas.
 
 
-## FIX 2026-10-13 (Fix 3): satu kata aktif = satu strip huruf menyatu
-## (tanpa gap antar-huruf), sudut luar membulat; badge "xN" jika stack.
-func _make_word_strip(word: String, m: Dictionary, inventory: SpellInventory, n: int) -> Control:
+## 2026-10-13: badge teks untuk satu kata aktif (pengganti strip huruf yang
+## terpotong untuk kata panjang): satu pil hijau berisi nama kata putih bold
+## + " ×N" kuning jika stack. Dipakai di HFlowContainer (wrap otomatis).
+func _make_word_badge(word: String, n: int) -> Control:
+	var panel := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.18, 0.49, 0.20)  # ~#2E7D32
+	sb.border_color = Color(0.43, 0.73, 0.43)
+	sb.set_border_width_all(3)
+	sb.set_corner_radius_all(16)
+	sb.content_margin_left = 16.0
+	sb.content_margin_right = 16.0
+	sb.content_margin_top = 8.0
+	sb.content_margin_bottom = 8.0
+	panel.add_theme_stylebox_override("panel", sb)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 0)
-	var cells: Array = m["cells"]
-	for i in cells.size():
-		var v = inventory.grid[int(cells[i])]
-		var tile := Label.new()
-		tile.text = str(v) if v != null else "?"
-		tile.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		tile.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		tile.custom_minimum_size = Vector2(34, 40)
-		tile.add_theme_font_size_override("font_size", 22)
-		tile.add_theme_color_override("font_color", Color(1, 1, 1))
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.16, 0.38, 0.22)
-		sb.border_color = Color(0.35, 0.85, 0.45)
-		sb.set_border_width_all(2)
-		sb.set_corner_radius_all(0)
-		if i == 0:
-			sb.corner_radius_top_left = 8
-			sb.corner_radius_bottom_left = 8
-		if i == cells.size() - 1:
-			sb.corner_radius_top_right = 8
-			sb.corner_radius_bottom_right = 8
-		tile.add_theme_stylebox_override("normal", sb)
-		row.add_child(tile)
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	var bold := FontVariation.new()
+	bold.base_font = ThemeDB.fallback_font
+	bold.variation_embolden = 1.0
+	var name_lbl := Label.new()
+	name_lbl.text = word
+	name_lbl.add_theme_font_size_override("font_size", 22)
+	name_lbl.add_theme_color_override("font_color", Color(1, 1, 1))
+	name_lbl.add_theme_font_override("font", bold)
+	row.add_child(name_lbl)
 	if n > 1:
-		var badge := Label.new()
-		badge.text = " x%d" % n
-		badge.add_theme_font_size_override("font_size", 20)
-		badge.add_theme_color_override("font_color", Color(1.0, 0.9, 0.45))
-		row.add_child(badge)
-	return row
+		var n_lbl := Label.new()
+		n_lbl.text = "×%d" % n
+		n_lbl.add_theme_font_size_override("font_size", 22)
+		n_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.31))
+		n_lbl.add_theme_font_override("font", bold)
+		row.add_child(n_lbl)
+	return panel
 
 
 ## Lebar drawer — dipakai game.gd untuk menggeser kamera.
