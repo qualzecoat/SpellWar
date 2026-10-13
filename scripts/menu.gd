@@ -258,13 +258,16 @@ func _get_code_text() -> String:
 func _setup_touch_field(b: Button, title: String, charset: String, max_len: int) -> void:
 	# Tap pada tombol field (sinyal pressed) -> buka keyboard buatan game.
 	# focus_mode NONE, jadi tidak ada yang bisa memicu keyboard OS.
+	# TODO DEBUG SEMENTARA (hapus setelah diagnosis): status DBG di bawah.
 	b.pressed.connect(func() -> void:
+		_set_status("DBG: pressed, kb=" + ("null" if _kb == null else "ada"), false)
 		_kb.open_for(
 			func() -> String: return str(b.get_meta("value", "")),
 			func(v: String) -> void:
 				b.set_meta("value", v)
 				_refresh_touch_button(b),
 			max_len, title, charset)
+		_set_status("DBG: open_for selesai, kb.visible=" + str(_kb.visible), false)
 	)
 
 
