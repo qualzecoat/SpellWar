@@ -365,6 +365,40 @@ func _init() -> void:
 	p3.queue_free()
 	p4.queue_free()
 
+	# --- Bug 2026-10-14: refresh inventory setelah tukar berhasil (MP) ---
+	# Alur: drop huruf ke slot -> confirm -> server tukar -> grid_sync(ex=true)
+	# -> grid lokal = hasil tukar, slot bersih, UI grid ter-refresh.
+	# (Regresi: dulu server tidak kirim flag ex -> client ambil cabang else ->
+	#  lubang reserved dipertahankan -> huruf hasil tukar tidak tampil.)
+	var MpGameS = load("res://scripts/mp_game.gd")
+	var mock3 := _MockGame.new()
+	mock3.inventory.grid[5] = "T"
+	mock3.inventory.grid[8] = "O"
+	var iu3 = load("res://scripts/inventory_ui.gd").new()
+	iu3._ready()
+	iu3.game = mock3
+	var ex4 = load("res://scripts/exchange_ui.gd").new()
+	ex4._ready()
+	ex4.game = mock3
+	# Simulasi drop: T (origin 5) ke slot sumber, O (origin 8) ke pembayaran.
+	ex4._source = {"letter": "T", "origin": 5}
+	ex4._payments[0] = {"letter": "O", "origin": 8}
+	mock3.inventory.grid[5] = null
+	mock3.inventory.grid[8] = null
+	# Simulasi grid hasil tukar dari server: T->U (biaya 1), O hangus.
+	var srv_cells: Array = mock3.inventory.grid.duplicate()
+	srv_cells[5] = "U"
+	MpGameS.apply_exchanged_grid(mock3.inventory, ex4, srv_cells)
+	iu3.refresh(mock3.inventory, [])
+	_check(str(mock3.inventory.grid[5]) == "U", "exchanged: grid lokal = hasil tukar (U)")
+	_check(mock3.inventory.grid[8] == null, "exchanged: huruf bayar hangus")
+	_check(ex4._source.is_empty() and (ex4._payments[0] as Dictionary).is_empty(),
+		"exchanged: slot sumber & bayar dibersihkan")
+	_check(iu3._cells[5].text == "U", "exchanged: UI grid ter-refresh (U tampil)")
+	_check(iu3._cells[8].text == "", "exchanged: UI cell bayar kosong")
+	iu3.queue_free()
+	ex4.queue_free()
+
 	p.queue_free()
 	q.queue_free()
 	print("test_fase3: %d lolos, %d gagal" % [_passed, _failed])

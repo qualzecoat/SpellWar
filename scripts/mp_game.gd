@@ -327,16 +327,22 @@ func on_inventory_changed() -> void:
 		exchange_ui.get_reserved() if _exchange_open else []))
 
 
+## Terapkan grid hasil tukar dari server (grid_sync dengan exchanged=true):
+## slot exchange dibersihkan, grid diganti penuh dari data otoritatif server.
+## Static agar bisa diuji headless tanpa instance mp_game.
+static func apply_exchanged_grid(inventory: SpellInventory, ex_ui, cells: Array) -> void:
+	ex_ui.clear_slots()
+	for i in SpellInventory.CELLS:
+		var v = cells[i]
+		inventory.grid[i] = str(v) if v != null else null
+
+
 func _on_grid_sync(cells: Array, note: String, exchanged: bool) -> void:
 	if cells.size() != SpellInventory.CELLS:
 		return
 	inv_ui.cancel_drag()
 	if exchanged:
-		# Hasil tukar dari server: slot dibersihkan, grid otoritatif penuh.
-		exchange_ui.clear_slots()
-		for i in SpellInventory.CELLS:
-			var v = cells[i]
-			inventory.grid[i] = str(v) if v != null else null
+		apply_exchanged_grid(inventory, exchange_ui, cells)
 	else:
 		# Grid biasa (pickup/dll): pertahankan lubang huruf yang reserved
 		# di slot exchange agar tidak duplikat dengan grid lokal.
