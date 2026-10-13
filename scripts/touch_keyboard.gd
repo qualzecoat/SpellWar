@@ -26,7 +26,7 @@ var _rows_box: VBoxContainer
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Ukuran diatur parent via set_anchors_preset SEBELUM add_child (lihat menu.gd).
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_STOP
 

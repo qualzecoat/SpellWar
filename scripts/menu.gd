@@ -130,6 +130,8 @@ func _ready() -> void:
 	# Tanpa kontrol teks yang bisa fokus, keyboard OS tidak mungkin muncul.
 	# Di PC (non-touch) LineEdit tetap normal via keyboard fisik.
 	_kb = TouchKeyboard.new()
+	# Quirk: set_anchors_preset harus SEBELUM add_child (di _ready tidak memberi ukuran).
+	_kb.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_kb)
 	_is_touch = _is_touch_device()
 	if _is_touch:
@@ -184,8 +186,7 @@ func _show(panel: VBoxContainer) -> void:
 
 
 func _is_touch_device() -> bool:
-	return true  # TODO DEBUG SEMENTARA #2: paksa mode touch agar bisa diuji visual di browser desktop (hapus setelah diagnosis)
-	# return DisplayServer.is_touchscreen_available()
+	return DisplayServer.is_touchscreen_available()
 
 
 # Membuat "field palsu" untuk touchscreen: Button yang di-style seperti
@@ -259,17 +260,13 @@ func _get_code_text() -> String:
 func _setup_touch_field(b: Button, title: String, charset: String, max_len: int) -> void:
 	# Tap pada tombol field (sinyal pressed) -> buka keyboard buatan game.
 	# focus_mode NONE, jadi tidak ada yang bisa memicu keyboard OS.
-	# TODO DEBUG SEMENTARA (hapus setelah diagnosis): status DBG di bawah.
 	b.pressed.connect(func() -> void:
-		_set_status("DBG: pressed, kb=" + ("null" if _kb == null else "ada"), false)
 		_kb.open_for(
 			func() -> String: return str(b.get_meta("value", "")),
 			func(v: String) -> void:
 				b.set_meta("value", v)
 				_refresh_touch_button(b),
 			max_len, title, charset)
-		# TODO DEBUG SEMENTARA (hapus setelah diagnosis): status DBG geometri di bawah.
-		_set_status("DBG: vis=" + str(_kb.visible) + " tree=" + str(_kb.is_visible_in_tree()) + " kbsize=" + str(_kb.size) + " panelrect=" + str(_kb._panel.get_global_rect()), false)
 	)
 
 
