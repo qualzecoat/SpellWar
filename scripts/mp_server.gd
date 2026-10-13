@@ -1,4 +1,4 @@
-extends Node
+extends Node2D
 ## Dedicated server SpellWar Fase 3 — WebSocket, authoritative.
 ## Dijalankan via binary Linux headless: ./server --headless -- --server
 ## (menu.gd mengalihkan ke scenes/server_main.tscn).
