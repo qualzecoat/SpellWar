@@ -12,8 +12,9 @@ extends Control
 
 signal closed
 
-const KEY_H := 54.0
-const PER_ROW := 8
+const KEY_H := 48.0
+const KEY_SEP := 5
+const QWERTY_ROWS: Array[String] = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM", "0123456789"]
 
 var _get_text: Callable
 var _set_text: Callable
@@ -76,7 +77,7 @@ func _ready() -> void:
 	header.add_child(close_b)
 
 	_rows_box = VBoxContainer.new()
-	_rows_box.add_theme_constant_override("separation", 6)
+	_rows_box.add_theme_constant_override("separation", KEY_SEP)
 	vb.add_child(_rows_box)
 
 
@@ -116,36 +117,35 @@ func is_open() -> bool:
 func _rebuild_keys() -> void:
 	for c in _rows_box.get_children():
 		c.queue_free()
-	var i := 0
+	# Layout QWERTY eksplisit; tiap huruf difilter _charset (mis. kode room
+	# tidak mengandung I/L/O/0/1 → otomatis ter-skip tanpa gap).
 	var rows := 0
-	while i < _charset.length():
+	for qrow in QWERTY_ROWS:
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
-		_rows_box.add_child(row)
-		for j in range(PER_ROW):
-			if i < _charset.length():
-				var ch := _charset.substr(i, 1)
+		row.add_theme_constant_override("separation", KEY_SEP)
+		var n := 0
+		for i in qrow.length():
+			var ch := qrow.substr(i, 1)
+			if _charset.contains(ch):
 				row.add_child(_make_key(ch, _press.bind(ch)))
-				i += 1
-			else:
-				# Pengisi agar ukuran tombol seragam di baris terakhir.
-				var sp := Control.new()
-				sp.custom_minimum_size = Vector2(40, KEY_H)
-				sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				row.add_child(sp)
+				n += 1
+		if n == 0:
+			row.queue_free()
+			continue
+		_rows_box.add_child(row)
 		rows += 1
-	# Baris bawah: backspace + OK.
+	# Baris bawah: backspace + OK (OK lebih lebar).
 	var bottom := HBoxContainer.new()
-	bottom.add_theme_constant_override("separation", 6)
+	bottom.add_theme_constant_override("separation", KEY_SEP)
 	_rows_box.add_child(bottom)
 	var bs := _make_key("⌫", _backspace)
 	bottom.add_child(bs)
 	var ok := _make_key("OK", close)
 	ok.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
+	ok.size_flags_stretch_ratio = 2.0
 	bottom.add_child(ok)
 	# Sesuaikan tinggi panel dengan jumlah baris.
-	_panel.offset_top = -(118.0 + float(rows + 1) * (KEY_H + 6.0))
+	_panel.offset_top = -(118.0 + float(rows + 1) * (KEY_H + float(KEY_SEP)))
 
 
 func _make_key(text: String, cb: Callable) -> Button:
