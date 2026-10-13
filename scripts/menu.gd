@@ -17,6 +17,7 @@ var _panels: Array = []
 var _main_panel: VBoxContainer
 var _join_panel: VBoxContainer
 var _lobby_panel: VBoxContainer
+var _kb: TouchKeyboard = null
 
 
 func _ready() -> void:
@@ -52,7 +53,7 @@ func _ready() -> void:
 	name_row.add_child(nl)
 	_name_edit = LineEdit.new()
 	_name_edit.placeholder_text = "Nickname"
-	_name_edit.max_length = 16
+	_name_edit.max_length = 12
 	_name_edit.custom_minimum_size = Vector2(280, 44)
 	_name_edit.add_theme_font_size_override("font_size", 24)
 	name_row.add_child(_name_edit)
@@ -115,6 +116,16 @@ func _ready() -> void:
 
 	_show(_main_panel)
 
+	# Keyboard virtual untuk touchscreen: keyboard OS (mis. Gboard) tidak bisa
+	# mengetik ke LineEdit pada web export (bug engine godot#99602).
+	# Di PC (non-touch) LineEdit tetap normal via keyboard fisik.
+	_kb = TouchKeyboard.new()
+	add_child(_kb)
+	if _is_touch_device():
+		_setup_touch_field(_name_edit, "NICKNAME",
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+		_setup_touch_field(_code_edit, "KODE ROOM", NetProto.CODE_CHARS)
+
 	Net.connected_to_server.connect(func() -> void: _set_status("Terhubung.", false))
 	Net.conn_failed.connect(_on_net_failed)
 	Net.hello_ok.connect(_on_hello_ok)
@@ -153,7 +164,26 @@ func _add_btn(parent: VBoxContainer, text: String, cb: Callable) -> Button:
 func _show(panel: VBoxContainer) -> void:
 	for p in _panels:
 		(p as VBoxContainer).visible = (p == panel)
+	if _kb != null and _kb.is_open():
+		_kb.close()
 	_set_status("", false)
+
+
+func _is_touch_device() -> bool:
+	return DisplayServer.is_touchscreen_available()
+
+
+func _setup_touch_field(le: LineEdit, title: String, charset: String) -> void:
+	# Cegah keyboard OS muncul (tidak berfungsi di web export); tap field
+	# membuka keyboard buatan game. (Touch di web tiba sebagai mouse button
+	# via emulate_mouse_from_touch.)
+	le.focus_mode = Control.FOCUS_NONE
+	le.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev is InputEventMouseButton:
+			var mb := ev as InputEventMouseButton
+			if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+				_kb.open_for(le, title, charset)
+	)
 
 
 func _set_status(t: String, is_error: bool) -> void:
