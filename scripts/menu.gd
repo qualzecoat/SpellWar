@@ -21,6 +21,8 @@ var _kb: TouchKeyboard = null
 var _is_touch: bool = false
 var _name_value_b: Button = null  # tombol field di mode touchscreen
 var _code_value_b: Button = null
+var _center: CenterContainer = null
+var _menu_tween: Tween = null
 
 
 func _ready() -> void:
@@ -33,12 +35,12 @@ func _ready() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
+	_center = CenterContainer.new()
+	_center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_center)
 
 	_main_panel = _vbox(14)
-	center.add_child(_main_panel)
+	_center.add_child(_main_panel)
 	var title := Label.new()
 	title.text = "SPELLWAR"
 	title.add_theme_font_size_override("font_size", 72)
@@ -67,7 +69,7 @@ func _ready() -> void:
 
 	# Panel join.
 	_join_panel = _vbox(12)
-	center.add_child(_join_panel)
+	_center.add_child(_join_panel)
 	var jl := Label.new()
 	jl.text = "Kode Room:"
 	jl.add_theme_font_size_override("font_size", 24)
@@ -85,7 +87,7 @@ func _ready() -> void:
 
 	# Panel lobby.
 	_lobby_panel = _vbox(10)
-	center.add_child(_lobby_panel)
+	_center.add_child(_lobby_panel)
 	_room_label = Label.new()
 	_room_label.add_theme_font_size_override("font_size", 40)
 	_room_label.add_theme_color_override("font_color", Color(0.55, 0.9, 1.0))
@@ -133,12 +135,14 @@ func _ready() -> void:
 	# Quirk: set_anchors_preset harus SEBELUM add_child (di _ready tidak memberi ukuran).
 	_kb.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_kb)
+	_kb.opened.connect(_on_kb_opened)
+	_kb.closed.connect(_on_kb_closed)
 	_is_touch = _is_touch_device()
 	if _is_touch:
 		_name_value_b = _swap_touch_field(_name_edit, "Nickname", 24, false)
 		_code_value_b = _swap_touch_field(_code_edit, "XXXXXX", 28, true)
 		_setup_touch_field(_name_value_b, "NICKNAME",
-			"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 12)
+			"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 '-.,-_", 12)
 		_setup_touch_field(_code_value_b, "KODE ROOM",
 			NetProto.CODE_CHARS, 6)
 
@@ -183,6 +187,29 @@ func _show(panel: VBoxContainer) -> void:
 	if _kb != null and _kb.is_open():
 		_kb.close()
 	_set_status("", false)
+
+
+## Keyboard dibuka -> geser menu ke atas agar field yang diisi tetap terlihat.
+func _on_kb_opened() -> void:
+	_shift_menu(true)
+
+
+## Keyboard ditutup -> kembalikan menu ke posisi semula.
+func _on_kb_closed() -> void:
+	_shift_menu(false)
+
+
+func _shift_menu(up: bool) -> void:
+	if _center == null:
+		return
+	if _menu_tween != null and _menu_tween.is_valid():
+		_menu_tween.kill()
+	var target := 0.0
+	if up and _kb != null:
+		target = -_kb.panel_height() * 0.5
+	_menu_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_menu_tween.tween_property(_center, "offset_top", target, 0.25)
+	_menu_tween.parallel().tween_property(_center, "offset_bottom", target, 0.25)
 
 
 func _is_touch_device() -> bool:

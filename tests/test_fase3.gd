@@ -21,6 +21,15 @@ func _fill(inv, word: String, r: int, c0: int) -> void:
 		inv.grid[r * 8 + c0 + k] = word.substr(k, 1)
 
 
+func _kb_texts(kb) -> Array:
+	var out := []
+	for row in kb._rows_box.get_children():
+		for b in row.get_children():
+			if b is Button:
+				out.append(b.text)
+	return out
+
+
 func _init() -> void:
 	# --- NetProto: kode room ---
 	var seen := {}
@@ -101,6 +110,63 @@ func _init() -> void:
 	var bad := q.inv.grid.duplicate()
 	bad[0] = "AB"
 	_check(not q.grid_is_permutation(bad), "grid huruf 2 karakter ditolak")
+
+	# --- TouchKeyboard: layout PS4, filter charset, shift toggle ---
+	var kb1 := TouchKeyboard.new()
+	kb1._ready()
+	var box1 := [""]
+	var opened1 := [false]
+	kb1.opened.connect(func() -> void: opened1[0] = true)
+	kb1.open_for(func() -> String: return box1[0], func(v: String) -> void: box1[0] = v,
+		12, "NICKNAME", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 '-.,-_")
+	var t1 := _kb_texts(kb1)
+	_check(opened1[0], "keyboard emit opened saat open_for")
+	_check("⇧" in t1, "tombol shift tampil utk nickname")
+	_check("q" in t1 and not ("Q" in t1), "huruf kecil default utk nickname")
+	_check("Space" in t1, "tombol Space tampil utk nickname")
+	_check("." in t1 and "-" in t1 and "_" in t1, "simbol tampil utk nickname")
+	_check("1" in t1 and "0" in t1, "baris angka tampil utk nickname")
+	_check(kb1.panel_height() > 0.0, "panel_height positif")
+	kb1._toggle_shift()
+	# Catatan: _rebuild_keys memakai queue_free; di headless tanpa frame,
+	# tombol lama belum terhapus dari tree, jadi verifikasi via logika.
+	_check(kb1._shift, "shift flag aktif setelah toggle")
+	_check(kb1._disp_char("q") == "Q", "_disp_char uppercase saat shift aktif")
+	kb1._toggle_shift()
+	_check(not kb1._shift and kb1._disp_char("q") == "q", "shift toggle kembali ke lowercase")
+	# Rebuild fresh dengan shift aktif -> tombol uppercase.
+	var kb3 := TouchKeyboard.new()
+	kb3._ready()
+	kb3._charset = "abcdefghijklmnopqrstuvwxyz"
+	kb3._shift = true
+	kb3._rebuild_keys()
+	var t3 := _kb_texts(kb3)
+	_check("A" in t3 and "Z" in t3 and not ("a" in t3) and not ("z" in t3), "rebuild shift -> semua uppercase")
+	kb3.queue_free()
+	kb1._press("Q")
+	kb1._press(" ")
+	_check(box1[0] == "Q ", "ketik Q + spasi")
+	kb1._backspace()
+	_check(box1[0] == "Q", "backspace hapus spasi")
+	kb1.close()
+	_check(not kb1.is_open(), "keyboard tertutup")
+
+	var kb2 := TouchKeyboard.new()
+	kb2._ready()
+	var box2 := [""]
+	kb2.open_for(func() -> String: return box2[0], func(v: String) -> void: box2[0] = v,
+		6, "KODE ROOM", NetProto.CODE_CHARS)
+	var t2 := _kb_texts(kb2)
+	_check(not ("⇧" in t2), "tanpa shift utk kode room")
+	_check(not ("Space" in t2), "tanpa Space utk kode room")
+	_check("Q" in t2 and not ("q" in t2), "uppercase otomatis utk kode room")
+	_check(not ("I" in t2) and not ("O" in t2) and not ("0" in t2) and not ("1" in t2), "I/O/0/1 diskip utk kode room")
+	_check(not ("." in t2) and not ("-" in t2), "simbol diskip utk kode room")
+	_check(kb2._disp_char("q") == "Q", "_disp_char q->Q utk kode room")
+	_check(kb2._disp_char("z") == "Z", "_disp_char z->Z utk kode room")
+	_check(kb2._disp_char("1") == "", "_disp_char 1 diskip utk kode room")
+	kb1.queue_free()
+	kb2.queue_free()
 
 	p.queue_free()
 	q.queue_free()
