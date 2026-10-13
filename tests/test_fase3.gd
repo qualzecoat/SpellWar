@@ -241,7 +241,143 @@ func _init() -> void:
 	_check(NetProto.movement_blocked(false, false, true), "gerak diblokir saat minigame terbuka")
 	_check(NetProto.movement_blocked(false, true, true), "gerak diblokir saat exchange+minigame")
 
+	# --- Bug 2026-10-14: tukar huruf MP — huruf reserved di slot ---
+	# Invariant: origin huruf reserved selalu null di grid lokal; grid yang
+	# dikirim ke server = grid lokal + reserved -> selalu permutasi valid.
+	var mock := _MockGame.new()
+	mock.inventory.grid[5] = "A"
+	mock.inventory.grid[7] = "M"
+	mock.inventory.grid[9] = "N"
+	var ex2 = load("res://scripts/exchange_ui.gd").new()
+	ex2._ready()
+	ex2.game = mock
+	ex2._source = {"letter": "A", "origin": 5}
+	ex2._payments[0] = {"letter": "M", "origin": 7}
+	ex2._payments[1] = {"letter": "N", "origin": 9}
+	mock.inventory.grid[5] = null
+	mock.inventory.grid[7] = null
+	mock.inventory.grid[9] = null
+	var rs: Array = ex2.get_reserved()
+	_check(rs.size() == 3, "get_reserved: 3 huruf (sumber+2 bayar)")
+	var view: Array = SpellInventory.reserved_grid_view(mock.inventory.grid, rs)
+	_check(str(view[5]) == "A" and str(view[7]) == "M" and str(view[9]) == "N",
+		"reserved_grid_view: huruf kembali ke origin")
+	# Server menerima merged grid sebagai permutasi valid (tidak reject).
+	var srv_grid: Array = []
+	srv_grid.resize(SpellInventory.CELLS)
+	srv_grid.fill(null)
+	srv_grid[5] = "A"
+	srv_grid[7] = "M"
+	srv_grid[9] = "N"
+	var spx := ServerPlayer.new()
+	spx._ready()
+	spx.inv.grid = srv_grid
+	_check(spx.grid_is_permutation(view), "server: merged grid = permutasi valid")
+	# Reserved kosong -> view identik dengan grid.
+	var view2: Array = SpellInventory.reserved_grid_view(mock.inventory.grid, [])
+	_check(view2 == mock.inventory.grid, "reserved_grid_view kosong = grid asli")
+	# Origin di luar jangkauan / sudah terisi -> diabaikan (tidak corrupt).
+	var bad_view: Array = SpellInventory.reserved_grid_view(
+		mock.inventory.grid, [{"letter": "X", "origin": 999}])
+	_check(bad_view[5] == null, "reserved origin invalid diabaikan")
+	# Ganti target A->C (biaya 2) lalu A->B (biaya 1): kelebihan bayar N@9
+	# kembali KE ORIGINNYA, bukan add_letters.
+	ex2._target = "C"
+	ex2._after_change()
+	ex2._target = "B"
+	ex2._after_change()
+	_check(str(mock.inventory.grid[9]) == "N", "kelebihan bayar kembali ke origin")
+	_check((ex2._payments[1] as Dictionary).is_empty(), "slot bayar berlebih dikosongkan")
+	ex2.queue_free()
+	spx.queue_free()
+
+	# --- Swap slot->cell: huruf tergusur pakai origin LAMA ---
+	var iu = load("res://scripts/inventory_ui.gd").new()
+	iu._ready()
+	var mock2 := _MockGame.new()
+	mock2.inventory.grid[10] = "B"
+	iu.game = mock2
+	var ex3 = load("res://scripts/exchange_ui.gd").new()
+	ex3._ready()
+	ex3.game = mock2
+	ex3._source = {"letter": "A", "origin": 5}
+	iu.exchange = ex3
+	iu._dragging = true
+	iu._drag_payload = {"kind": "source", "slot": -1, "origin": 5, "letter": "A"}
+	var mpos: Vector2 = iu.get_global_mouse_position()
+	iu._cells[10].position = mpos - Vector2(28, 28)
+	iu._cells[10].size = Vector2(56, 56)
+	iu._finish_drag()
+	_check(str(mock2.inventory.grid[10]) == "A", "swap: huruf slot pindah ke cell")
+	var s3: Dictionary = ex3._source
+	_check(str(s3.get("letter", "")) == "B" and int(s3.get("origin", -1)) == 5,
+		"swap: huruf tergusur ke slot dengan origin LAMA (lubang)")
+	ex3.queue_free()
+	iu.queue_free()
+
+	# --- Server: respawn, cooldown puzzle, event sword, exchange ---
+	var MpSrv = load("res://scripts/mp_server.gd")
+	var srv = MpSrv.new()
+	var room = MpSrv.Room.new()
+	room.started = true
+	var p3 := ServerPlayer.new()
+	p3._ready()
+	p3.pid = 1
+	p3.spawn_pos = Vector2(760, 460)
+	p3.alive = false
+	p3.hp = 0
+	p3.respawn_left = 0.0
+	srv._respawn_player(room, p3)
+	_check(p3.alive, "respawn: hidup kembali (bug: dulu mati selamanya)")
+	_check(p3.hp == p3.max_hp and p3.ep == p3.max_ep, "respawn: HP/EP penuh")
+	_check(p3.protect_left > 0.0, "respawn: proteksi 3 dtk aktif")
+	_check(p3.position == Vector2(760, 460), "respawn: di titik spawn tetap")
+	p3.alive = true
+	p3.position = Vector2(1000, -100)  # PUZZLE_POS
+	srv._on_puzzle_done(room, p3)
+	_check(absf(p3.puzzle_cd - NetProto.PUZZLE_COOLDOWN) < 0.001,
+		"puzzle_done: cooldown 30 dtk diset")
+	_check(room.pickups.size() == 5, "puzzle_done: 5 huruf buyar")
+	srv._on_puzzle_done(room, p3)
+	_check(room.pickups.size() == 5, "puzzle_done saat cooldown: ditolak")
+	p3.words = ["SWORD"]
+	p3.ep = 100
+	srv._on_weapon(room, p3, "SWORD")
+	var has_sword := false
+	for e in room.events:
+		if str((e as Dictionary).get("k", "")) == "sword":
+			has_sword = true
+	_check(has_sword, "event sword dikirim ke semua client")
+	_check(p3.ep == 92, "sword: biaya 8 EP")
+	var p4 := ServerPlayer.new()
+	p4._ready()
+	p4.pid = 2
+	p4.alive = true
+	p4.inv.grid[5] = "A"
+	p4.inv.grid[7] = "M"
+	p4.inv.grid[9] = "N"
+	srv._on_exchange(room, p4, {"src": 5, "target": "C", "letter": "A", "pay": [7, 9]})
+	_check(str(p4.inv.grid[5]) == "C" and p4.inv.grid[7] == null and p4.inv.grid[9] == null,
+		"exchange server: sumber jadi target, bayar hangus")
+	p4.inv.grid[5] = "Z"
+	srv._on_exchange(room, p4, {"src": 5, "target": "C", "letter": "A", "pay": [7, 9]})
+	_check(str(p4.inv.grid[5]) == "Z", "exchange: validasi gagal -> grid tidak berubah")
+	p3.queue_free()
+	p4.queue_free()
+
 	p.queue_free()
 	q.queue_free()
 	print("test_fase3: %d lolos, %d gagal" % [_passed, _failed])
 	quit(_failed)
+
+
+## Mock game untuk test exchange: punya inventory + on_inventory_changed().
+class _MockGame extends RefCounted:
+	var inventory: SpellInventory
+	var changed := 0
+
+	func _init() -> void:
+		inventory = SpellInventory.new()
+
+	func on_inventory_changed() -> void:
+		changed += 1

@@ -20,6 +20,7 @@ var _exchange_available := false   # zona mesin tukar
 var _exchange_open := false
 var _dead := false
 var _respawn_left := 0.0
+var _puzzle_cd := 0.0  # cooldown minigame per pemain (desain: 30 dtk)
 
 # Sengaja untyped: akses member/sinyal custom tidak dikenal static typing base class.
 @onready var player = $Player
@@ -63,6 +64,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if _puzzle_cd > 0.0:
+		_puzzle_cd = maxf(_puzzle_cd - delta, 0.0)
 	if _dead:
 		_respawn_left -= delta
 		hud.show_respawn(maxi(int(ceil(_respawn_left)), 0))
@@ -312,6 +315,10 @@ func _refresh_weapons() -> void:
 func open_minigame() -> void:
 	if ui_open:
 		return
+	# Cooldown 30 dtk per pemain (desain) — cegah farming satu konsol.
+	if _puzzle_cd > 0.0:
+		hud.show_toast("Puzzle cooldown: %ds" % maxi(int(ceil(_puzzle_cd)), 1))
+		return
 	ui_open = true
 	player.input_enabled = false
 	hud.set_interact_visible(false)
@@ -324,6 +331,7 @@ func _on_minigame_finished(success: bool) -> void:
 	player.input_enabled = true
 	hud.set_machine_panel_open(false)  # FIX 2026-10-13
 	if success:
+		_puzzle_cd = 30.0
 		_scatter_puzzle_reward()
 	_refresh_interact()
 

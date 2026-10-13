@@ -36,6 +36,7 @@ var _pickups: Dictionary = {}   # id -> Node2D
 var _traps: Dictionary = {}     # id -> Node2D
 var _projs: Dictionary = {}     # id -> Node2D
 var _darkness: DarknessOverlay = null
+var _puzzle_cd := 0.0  # cooldown minigame (mirror server, cegah main sia-sia)
 
 
 func _ready() -> void:
@@ -83,6 +84,8 @@ func _physics_process(delta: float) -> void:
 	if NetProto.movement_blocked(_dead, _exchange_open, minigame.visible):
 		mv = Vector2.ZERO
 	Net.send_input(mv, delta)
+	if _puzzle_cd > 0.0:
+		_puzzle_cd = maxf(_puzzle_cd - delta, 0.0)
 	_update_proximity()
 
 
@@ -136,6 +139,8 @@ func _update_self(d: Dictionary) -> void:
 	_my_pos = Vector2(float(d.get("x", 0.0)), float(d.get("y", 0.0)))
 	local_visual.apply_snap(d)
 	_dead = not bool(d.get("alive", true))
+	if _dead and _exchange_open:
+		close_exchange()  # seperti solo: mati -> panel mesin ditutup
 	hud.set_hp(int(d.get("hp", 100)), int(d.get("max_hp", 100)))
 	hud.set_ep(int(d.get("ep", 100)), int(d.get("max_ep", 100)))
 	hud.set_sp_indicator(int(d.get("sp", 0)))
@@ -196,6 +201,20 @@ func _handle_event(e: Dictionary) -> void:
 			hud.show_toast("%s mati!" % str(e.get("name", "?")))
 		"trap":
 			_float_text(int(e.get("id", 0)), "TRAP!", Color(1.0, 0.7, 0.2))
+		"sword":
+			_play_swing(int(e.get("id", 0)))
+
+
+## Visual ayunan pedang (paritas dengan solo: player.swing_sword()).
+## Server mengirim event "sword" agar semua client me-render-nya.
+func _play_swing(pid: int) -> void:
+	var v: RemotePlayerVisual = null
+	if pid == _my_id:
+		v = local_visual
+	else:
+		v = _remotes.get(pid)
+	if v != null:
+		v.play_swing()
 
 
 func _float_text(pid: int, text: String, color: Color) -> void:
@@ -300,19 +319,44 @@ func on_inventory_changed() -> void:
 	_weapon_prev_keys = res["all_keys"]
 	active_matches = matches
 	inv_ui.refresh(inventory, active_matches)
-	Net.send_grid(inventory.grid)
+	# FIX: kirim tampilan grid yang slot-aware — huruf yang reserved di slot
+	# exchange dikembalikan ke originnya, sehingga server selalu melihat
+	# permutasi valid dan tidak pernah me-reject (sebelumnya drop huruf ke
+	# slot selalu di-reject -> grid_sync -> slot langsung terhapus).
+	Net.send_grid(SpellInventory.reserved_grid_view(inventory.grid,
+		exchange_ui.get_reserved() if _exchange_open else []))
 
 
-func _on_grid_sync(cells: Array, note: String) -> void:
+func _on_grid_sync(cells: Array, note: String, exchanged: bool) -> void:
 	if cells.size() != SpellInventory.CELLS:
 		return
 	inv_ui.cancel_drag()
-	for i in SpellInventory.CELLS:
-		var v = cells[i]
-		inventory.grid[i] = str(v) if v != null else null
-	if _exchange_open:
-		# Hasil tukar dari server: slot dibersihkan (sudah dihitung server).
+	if exchanged:
+		# Hasil tukar dari server: slot dibersihkan, grid otoritatif penuh.
 		exchange_ui.clear_slots()
+		for i in SpellInventory.CELLS:
+			var v = cells[i]
+			inventory.grid[i] = str(v) if v != null else null
+	else:
+		# Grid biasa (pickup/dll): pertahankan lubang huruf yang reserved
+		# di slot exchange agar tidak duplikat dengan grid lokal.
+		var reserved := {}
+		if _exchange_open:
+			for r in exchange_ui.get_reserved():
+				reserved[int((r as Dictionary)["origin"])] = true
+		var server_count := 0
+		for v in cells:
+			if v != null:
+				server_count += 1
+		if server_count < reserved.size():
+			# State rusak (mis. mati saat panel terbuka): reset penuh.
+			exchange_ui.clear_slots()
+			reserved.clear()
+		for i in SpellInventory.CELLS:
+			if reserved.has(i):
+				continue
+			var v2 = cells[i]
+			inventory.grid[i] = str(v2) if v2 != null else null
 	on_inventory_changed_silent()
 	if note != "":
 		hud.show_toast(note)
@@ -359,6 +403,10 @@ func _shift_camera(open: bool) -> void:
 func open_minigame() -> void:
 	if ui_open:
 		return
+	# Cooldown 30 dtk (mirror server) — jangan buang waktu main sia-sia.
+	if _puzzle_cd > 0.0:
+		hud.show_toast("Puzzle cooldown: %ds" % maxi(int(ceil(_puzzle_cd)), 1))
+		return
 	ui_open = true
 	hud.set_interact_visible(false)
 	hud.set_machine_panel_open(true)
@@ -369,6 +417,7 @@ func _on_minigame_finished(success: bool) -> void:
 	ui_open = false
 	hud.set_machine_panel_open(false)
 	if success:
+		_puzzle_cd = NetProto.PUZZLE_COOLDOWN
 		Net.send_puzzle_done()
 	_refresh_interact()
 

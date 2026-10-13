@@ -21,6 +21,8 @@ const MIN_PLAYERS := 2
 const RECONNECT_TIME := 90.0
 const RESPAWN_TIME := 5.0
 const PROTECT_TIME := 3.0
+# Cooldown minigame puzzle per pemain (desain): cegah farming satu konsol.
+const PUZZLE_COOLDOWN := 30.0
 
 # 8 slot spawn — adaptasi map v1 (ruang ekstraksi + ruang puzzle + koridor).
 # Semua titik walkable (di dalam ruangan, jauh dari dinding/mesin).

@@ -126,3 +126,28 @@ func _draw_bar(y: float, frac: float, color: Color, maxv: int, step: float) -> v
 	for i in range(1, n):
 		var x := -BAR_W / 2 + BAR_W * float(i) / float(n)
 		draw_line(Vector2(x, y - 2), Vector2(x, y + h + 2), Color(0, 0, 0, 0.75), 2.0)
+
+
+## Visual ayunan pedang (paritas solo) — dipicu event "sword" dari server.
+func play_swing() -> void:
+	var arc := SwingArc.new()
+	arc.facing_angle = facing.angle()
+	add_child(arc)
+	var tw := create_tween()
+	tw.tween_property(arc, "modulate:a", 0.0, 0.25)
+	tw.tween_callback(arc.queue_free)
+
+
+class SwingArc extends Node2D:
+	var facing_angle := 0.0
+	var radius := 78.0
+
+	func _draw() -> void:
+		var pts := PackedVector2Array()
+		pts.append(Vector2.ZERO)
+		var spread := 1.0
+		for i in range(17):
+			var a := facing_angle - spread + i * (spread * 2.0 / 16.0)
+			pts.append(Vector2(cos(a), sin(a)) * radius)
+		draw_colored_polygon(pts, Color(1.0, 1.0, 1.0, 0.55))
+		draw_polyline(pts, Color(1.0, 1.0, 1.0, 0.9), 4.0)

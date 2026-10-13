@@ -13,6 +13,8 @@ var pid := 0
 var player_name := ""
 var peer: WebSocketPeer = null   # null saat disconnect (reconnect 90 dtk)
 var spawn_slot := 0
+var spawn_pos := Vector2.ZERO   # titik spawn tetap (dipakai respawn)
+var puzzle_cd := 0.0            # cooldown minigame per pemain (desain: 30 dtk)
 
 var inv: SpellInventory           # grid otoritatif 8x8
 var input_vec := Vector2.ZERO

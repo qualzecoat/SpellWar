@@ -105,6 +105,8 @@ func _read_ws(ws: WebSocketPeer) -> Array:
 
 
 func _send(ws: WebSocketPeer, msg_type: String, data: Dictionary = {}) -> void:
+	if ws == null:
+		return
 	if ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
 		ws.send_text(NetProto.msg(msg_type, data))
 
@@ -291,6 +293,7 @@ func _on_start(room: Room, p: ServerPlayer) -> void:
 		var pl: ServerPlayer = room.players[pid]
 		pl.spawn_slot = i % slots.size()
 		pl.position = slots[pl.spawn_slot]
+		pl.spawn_pos = pl.position
 		pl.hp = pl.max_hp
 		pl.ep = pl.max_ep
 		pl.alive = true
@@ -316,11 +319,12 @@ func _on_grid(room: Room, p: ServerPlayer, m: Dictionary) -> void:
 	p.recompute_words()
 
 
-func _send_grid(room: Room, p: ServerPlayer, note: String) -> void:
+func _send_grid(room: Room, p: ServerPlayer, note: String, exchanged: bool = false) -> void:
 	var c := _conn_of(room, p.pid)
 	if c.is_empty():
 		return
-	_send(c["ws"], "grid", {"cells": p.inv.grid.duplicate(), "note": note})
+	_send(c["ws"], "grid", {"cells": p.inv.grid.duplicate(), "note": note,
+		"ex": exchanged})
 
 
 func _on_weapon(room: Room, p: ServerPlayer, w: String) -> void:
@@ -335,6 +339,7 @@ func _on_weapon(room: Room, p: ServerPlayer, w: String) -> void:
 				return
 			p.clear_protection()
 			_melee(room, p, 25, 100.0)
+			room.events.append({"k": "sword", "id": p.pid})
 		"PISTOL":
 			if not ("PISTOL" in p.words):
 				return
@@ -408,6 +413,11 @@ func _on_puzzle_done(room: Room, p: ServerPlayer) -> void:
 		return
 	if p.position.distance_to(MapScript.PUZZLE_POS) > 260.0:
 		return  # validasi wajar: harus dekat konsol
+	# Cooldown 30 dtk per pemain (desain) — cegah farming satu konsol.
+	if p.puzzle_cd > 0.0:
+		_send(p.peer, "toast", {"msg": "Puzzle cooldown: %ds" % maxi(int(ceil(p.puzzle_cd)), 1)})
+		return
+	p.puzzle_cd = NetProto.PUZZLE_COOLDOWN
 	for i in 5:
 		var letter := String.chr(randi_range(65, 90))
 		var ang := randf() * TAU
@@ -444,7 +454,7 @@ func _on_exchange(room: Room, p: ServerPlayer, m: Dictionary) -> void:
 			return
 	SpellExchange.apply(p.inv, src, target, pay)
 	p.recompute_words()
-	_send_grid(room, p, "")
+	_send_grid(room, p, "", true)
 	_send(p.peer, "exchange_ok", {"msg": "Tukar: %s jadi %s!" % [letter, target]})
 
 
@@ -472,6 +482,11 @@ func _sim_room(room: Room, delta: float) -> void:
 				_timeout_player(room, p)
 			continue
 		p.simulate(delta)
+		if p.puzzle_cd > 0.0:
+			p.puzzle_cd = maxf(p.puzzle_cd - delta, 0.0)
+		# FIX: pemain yang mati SEBELUMNYA tidak pernah respawn di MP.
+		if not p.alive and p.respawn_left <= 0.0:
+			_respawn_player(room, p)
 	# Proyektil.
 	var space := get_world_2d().direct_space_state
 	for i in range(room.projs.size() - 1, -1, -1):
@@ -556,6 +571,14 @@ func _drop_letters(room: Room, p: ServerPlayer) -> void:
 		p.inv.grid[i] = null
 	p.recompute_words()
 	_send_grid(room, p, "")
+
+
+## Respawn di titik spawn tetap + proteksi 3 dtk (seperti solo).
+func _respawn_player(room: Room, p: ServerPlayer) -> void:
+	p.position = p.spawn_pos
+	p.respawn_at(p.position)
+	_send_grid(room, p, "")
+	_broadcast(room)
 
 
 func _spawn_pickup(room: Room, pos: Vector2, letter: String) -> void:
