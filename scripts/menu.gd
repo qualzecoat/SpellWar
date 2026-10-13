@@ -19,8 +19,8 @@ var _join_panel: VBoxContainer
 var _lobby_panel: VBoxContainer
 var _kb: TouchKeyboard = null
 var _is_touch: bool = false
-var _name_value_l: Label = null  # label nilai di field palsu (mode touchscreen)
-var _code_value_l: Label = null
+var _name_value_b: Button = null  # tombol field di mode touchscreen
+var _code_value_b: Button = null
 
 
 func _ready() -> void:
@@ -124,19 +124,20 @@ func _ready() -> void:
 	# FOCUS_NONE ternyata tidak cukup mencegah keyboard OS muncul di
 	# browser HP (quirk sisi browser). Solusi deterministik: di touchscreen
 	# TIDAK ADA LineEdit yang bisa difokus sama sekali — field diganti
-	# "field palsu" (PanelContainer + Label, focus_mode NONE) yang tap-nya
-	# membuka keyboard buatan game. Tanpa kontrol teks yang bisa fokus,
-	# keyboard OS tidak mungkin muncul.
+	# "field palsu" berupa Button yang di-style seperti kolom teks
+	# (sinyal pressed terbukti merespons tap di browser HP, tidak seperti
+	# gui_input manual). Tap tombol -> membuka keyboard buatan game.
+	# Tanpa kontrol teks yang bisa fokus, keyboard OS tidak mungkin muncul.
 	# Di PC (non-touch) LineEdit tetap normal via keyboard fisik.
 	_kb = TouchKeyboard.new()
 	add_child(_kb)
 	_is_touch = _is_touch_device()
 	if _is_touch:
-		_name_value_l = _swap_touch_field(_name_edit, "Nickname", 24, false)
-		_code_value_l = _swap_touch_field(_code_edit, "XXXXXX", 28, true)
-		_setup_touch_field(_name_value_l.get_parent(), _name_value_l, "NICKNAME",
+		_name_value_b = _swap_touch_field(_name_edit, "Nickname", 24, false)
+		_code_value_b = _swap_touch_field(_code_edit, "XXXXXX", 28, true)
+		_setup_touch_field(_name_value_b, "NICKNAME",
 			"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 12)
-		_setup_touch_field(_code_value_l.get_parent(), _code_value_l, "KODE ROOM",
+		_setup_touch_field(_code_value_b, "KODE ROOM",
 			NetProto.CODE_CHARS, 6)
 
 	Net.connected_to_server.connect(func() -> void: _set_status("Terhubung.", false))
@@ -186,18 +187,21 @@ func _is_touch_device() -> bool:
 	return DisplayServer.is_touchscreen_available()
 
 
-# Membuat "field palsu" untuk touchscreen: PanelContainer + Label yang
-# TIDAK BISA FOKUS (focus_mode NONE di keduanya). LineEdit asli
+# Membuat "field palsu" untuk touchscreen: Button yang di-style seperti
+# kolom teks (focus_mode NONE, tidak bisa memicu keyboard OS). LineEdit asli
 # disembunyikan (kontrol tersembunyi tidak bisa difokus engine).
-# Mengembalikan Label nilai di dalamnya.
-func _swap_touch_field(le: LineEdit, placeholder: String, font_size: int, centered: bool) -> Label:
+# Tap via sinyal pressed (terbukti jalan di browser HP) -> keyboard game.
+# Mengembalikan Button field-nya.
+func _swap_touch_field(le: LineEdit, placeholder: String, font_size: int, centered: bool) -> Button:
 	var parent: Control = le.get_parent()
 	var idx := le.get_index()
 	le.visible = false
-	var panel := PanelContainer.new()
-	panel.focus_mode = Control.FOCUS_NONE
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.custom_minimum_size = le.custom_minimum_size
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = le.custom_minimum_size
+	b.add_theme_font_size_override("font_size", font_size)
+	b.alignment = HORIZONTAL_ALIGNMENT_CENTER if centered else HORIZONTAL_ALIGNMENT_LEFT
+	b.clip_text = true
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.13, 0.15, 0.21)
 	sb.set_corner_radius_all(8)
@@ -207,68 +211,60 @@ func _swap_touch_field(le: LineEdit, placeholder: String, font_size: int, center
 	sb.content_margin_right = 12.0
 	sb.content_margin_top = 8.0
 	sb.content_margin_bottom = 8.0
-	panel.add_theme_stylebox_override("panel", sb)
-	var lab := Label.new()
-	lab.focus_mode = Control.FOCUS_NONE
-	lab.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lab.add_theme_font_size_override("font_size", font_size)
-	lab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lab.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	lab.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	if centered:
-		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lab.set_meta("placeholder", placeholder)
-	lab.set_meta("value", "")
-	panel.add_child(lab)
-	parent.add_child(panel)
-	parent.move_child(panel, idx)
-	_refresh_touch_label(lab)
-	return lab
+	b.add_theme_stylebox_override("normal", sb)
+	b.add_theme_stylebox_override("hover", sb)
+	b.add_theme_stylebox_override("focus", sb)
+	var sbp := sb.duplicate() as StyleBoxFlat
+	sbp.bg_color = Color(0.09, 0.11, 0.15)
+	b.add_theme_stylebox_override("pressed", sbp)
+	b.set_meta("placeholder", placeholder)
+	b.set_meta("value", "")
+	parent.add_child(b)
+	parent.move_child(b, idx)
+	_refresh_touch_button(b)
+	return b
 
 
-func _refresh_touch_label(lab: Label) -> void:
-	var v := str(lab.get_meta("value", ""))
-	if v == "":
-		lab.text = str(lab.get_meta("placeholder", ""))
-		lab.add_theme_color_override("font_color", Color(0.45, 0.47, 0.55))
-	else:
-		lab.text = v
-		lab.add_theme_color_override("font_color", Color(1, 1, 1))
+func _refresh_touch_button(b: Button) -> void:
+	var v := str(b.get_meta("value", ""))
+	var col := Color(0.45, 0.47, 0.55) if v == "" else Color(1, 1, 1)
+	b.text = str(b.get_meta("placeholder", "")) if v == "" else v
+	b.add_theme_color_override("font_color", col)
+	b.add_theme_color_override("font_hover_color", col)
+	b.add_theme_color_override("font_pressed_color", col)
+	b.add_theme_color_override("font_focus_color", col)
 
 
 func _get_name_text() -> String:
 	if _is_touch:
-		return str(_name_value_l.get_meta("value", ""))
+		return str(_name_value_b.get_meta("value", ""))
 	return _name_edit.text
 
 
 func _set_name_text(v: String) -> void:
 	if _is_touch:
-		_name_value_l.set_meta("value", v)
-		_refresh_touch_label(_name_value_l)
+		_name_value_b.set_meta("value", v)
+		_refresh_touch_button(_name_value_b)
 	else:
 		_name_edit.text = v
 
 
 func _get_code_text() -> String:
 	if _is_touch:
-		return str(_code_value_l.get_meta("value", ""))
+		return str(_code_value_b.get_meta("value", ""))
 	return _code_edit.text
 
 
-func _setup_touch_field(panel: Control, lab: Label, title: String, charset: String, max_len: int) -> void:
-	# Tap pada field palsu -> buka keyboard buatan game. Panel & label
+func _setup_touch_field(b: Button, title: String, charset: String, max_len: int) -> void:
+	# Tap pada tombol field (sinyal pressed) -> buka keyboard buatan game.
 	# focus_mode NONE, jadi tidak ada yang bisa memicu keyboard OS.
-	panel.gui_input.connect(func(ev: InputEvent) -> void:
-		if ev is InputEventMouseButton:
-			var mb := ev as InputEventMouseButton
-			if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-				_kb.open_for(
-					func() -> String: return str(lab.get_meta("value", "")),
-					func(v: String) -> void:
-						lab.set_meta("value", v)
-						_refresh_touch_label(lab),
-					max_len, title, charset)
+	b.pressed.connect(func() -> void:
+		_kb.open_for(
+			func() -> String: return str(b.get_meta("value", "")),
+			func(v: String) -> void:
+				b.set_meta("value", v)
+				_refresh_touch_button(b),
+			max_len, title, charset)
 	)
 
 
