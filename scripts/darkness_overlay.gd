@@ -2,13 +2,16 @@ class_name DarknessOverlay
 extends CanvasLayer
 ## Overlay kegelapan vision ala Among Us untuk client multiplayer (Fase 3).
 ##
-## Menggantikan implementasi lama (Sprite2D radial 512px yang ditempel di posisi
-## pemain) yang hanya menggelapkan KOTAK di tengah layar. Pendekatan baru:
 ## CanvasLayer full-rect + shader canvas_item — seluruh layar gelap kecuali
-## lingkaran lembut di posisi screen pemain lokal. Resolution-independent di
-## bawah stretch canvas_items + expand: posisi lubang & radius dihitung dalam
-## koordinat ternormalisasi tiap frame (termasuk camera smoothing & offset
-## geser kamera saat inventory terbuka).
+## lingkaran lembut di posisi screen pemain lokal.
+##
+## Perhitungan posisi lubang memakai KAMERA (bukan canvas_transform):
+## canvas_transform memetakan ke ruang visible_rect logis, sedangkan kode lama
+## membaginya dengan ukuran window OS — satuannya tercampur sehingga di HP
+## (aspect lebar + expand) lubang bergeser dari pemain. Formula kamera memakai
+## satuan konsisten: world_view = visible_rect.size / zoom (satuan dunia yang
+## terlihat), lalu hole_uv = 0.5 + (pemain - tengah_kamera) / world_view.
+## Radius dikirim dalam px dunia (180/420) dan dihitung di shader.
 
 const SHADER_PATH := "res://shaders/darkness.gdshader"
 const INNER_WORLD := 180.0 # px dunia: terang penuh di dalam radius ini
@@ -20,11 +23,13 @@ var _rect: ColorRect
 
 
 func _ready() -> void:
-	# Di atas dunia (default), di bawah HUD (HUD layer=10, lihat scenes/hud.tscn).
+	# Di atas dunia (default), di bawah HUD (HUD layer=10).
 	layer = 2
 	var sh: Shader = load(SHADER_PATH)
 	_mat = ShaderMaterial.new()
 	_mat.shader = sh
+	_mat.set_shader_parameter("u_inner", INNER_WORLD)
+	_mat.set_shader_parameter("u_outer", OUTER_WORLD)
 	_rect = ColorRect.new()
 	_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -37,25 +42,22 @@ func setup(target: Node2D) -> void:
 
 
 ## Hitungan murni (tanpa tree) agar bisa diuji headless.
-## xform: transform canvas->viewport (piksel viewport), sudah termasuk kamera,
-## smoothing, offset, dan stretch scale. win_size: ukuran window piksel aktual.
-static func compute_params(xform: Transform2D, win_size: Vector2, world_pos: Vector2) -> Dictionary:
+## cam_center: posisi dunia di tengah layar (Camera2D.get_screen_center_position()).
+## zoom: Camera2D.zoom. visible_size: Viewport.get_visible_rect().size.
+## world_pos: posisi dunia pemain. Hasil hole_uv dalam 0..1.
+static func compute_params(cam_center: Vector2, zoom: Vector2, visible_size: Vector2, world_pos: Vector2) -> Dictionary:
 	var hole_uv := Vector2(0.5, 0.5)
 	var aspect := 16.0 / 9.0
-	var inner_h := 0.0
-	var outer_h := 0.0
-	var ppw := absf(xform.get_scale().x) # piksel viewport per px dunia
-	if win_size.x > 0.0 and win_size.y > 0.0 and ppw > 0.0:
-		var hole_px: Vector2 = xform * world_pos
-		hole_uv = hole_px / win_size
-		aspect = win_size.x / win_size.y
-		inner_h = INNER_WORLD * ppw / win_size.y
-		outer_h = OUTER_WORLD * ppw / win_size.y
+	var view_h_world := 648.0
+	if visible_size.x > 0.0 and visible_size.y > 0.0 and zoom.x > 0.0 and zoom.y > 0.0:
+		var world_view := visible_size / zoom
+		hole_uv = Vector2(0.5, 0.5) + (world_pos - cam_center) / world_view
+		aspect = visible_size.x / visible_size.y
+		view_h_world = world_view.y
 	return {
 		"hole_uv": hole_uv,
 		"aspect": aspect,
-		"inner_h": inner_h,
-		"outer_h": outer_h,
+		"view_h_world": view_h_world,
 	}
 
 
@@ -65,11 +67,14 @@ func _process(_delta: float) -> void:
 	var vp := get_viewport()
 	if vp == null or _mat == null:
 		return
-	var win := Vector2(DisplayServer.window_get_size())
-	if win.x <= 0.0 or win.y <= 0.0:
-		win = vp.get_visible_rect().size
-	var prm := compute_params(vp.get_canvas_transform(), win, _target.global_position)
+	var prm: Dictionary
+	var cam := vp.get_camera_2d()
+	if cam != null:
+		prm = compute_params(cam.get_screen_center_position(), cam.zoom, vp.get_visible_rect().size, _target.global_position)
+	else:
+		# Fallback: anggap pemain di tengah layar.
+		var vs := vp.get_visible_rect().size
+		prm = compute_params(_target.global_position, Vector2.ONE, vs, _target.global_position)
 	_mat.set_shader_parameter("u_hole_uv", prm["hole_uv"])
 	_mat.set_shader_parameter("u_aspect", prm["aspect"])
-	_mat.set_shader_parameter("u_inner_h", prm["inner_h"])
-	_mat.set_shader_parameter("u_outer_h", prm["outer_h"])
+	_mat.set_shader_parameter("u_view_h_world", prm["view_h_world"])

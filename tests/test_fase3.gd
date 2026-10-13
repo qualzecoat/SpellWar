@@ -168,45 +168,56 @@ func _init() -> void:
 	kb1.queue_free()
 	kb2.queue_free()
 
-	# --- DarknessOverlay: fix kotak gelap (shader + matematika koordinat) ---
+	# --- DarknessOverlay: formula berbasis kamera (fix lubang geser di HP) ---
 	var dsh: Shader = load("res://shaders/darkness.gdshader")
 	_check(dsh != null, "shader darkness.gdshader ter-load")
 	_check(dsh != null and dsh.get_code().contains("smoothstep"), "shader memakai smoothstep")
 	_check(dsh != null and dsh.get_code().contains("u_hole_uv"), "shader punya uniform u_hole_uv")
+	_check(dsh != null and dsh.get_code().contains("u_view_h_world"), "shader punya uniform u_view_h_world")
 	var ov := DarknessOverlay.new()
 	ov._ready()
 	_check(ov.layer == 2, "darkness layer=2 (di atas dunia, di bawah HUD layer=10)")
 	_check(ov._rect != null and ov._rect.mouse_filter == Control.MOUSE_FILTER_IGNORE,
 		"darkness full-rect & tidak makan input")
 	_check(ov._mat != null and ov._mat.shader == dsh, "material memakai shader darkness")
-	# Simulasi canvas transform: kamera tepat di pemain, stretch scale 1.5,
-	# window 1920x1080 -> lubang harus tepat di tengah layar (0.5, 0.5).
-	var win := Vector2(1920.0, 1080.0)
-	var s := 1.5
+	# Simulasi HP user: aspect lebar 2.17 (visible 1404x648 setelah expand),
+	# kamera tepat di pemain -> lubang harus tepat di tengah (0.5, 0.5).
+	var vis := Vector2(1404.0, 648.0)
+	var zm := Vector2.ONE
 	var cam := Vector2(100.0, 50.0)
-	var xf := Transform2D(0.0, Vector2(s, s), 0.0, win * 0.5 - Vector2(s, s) * cam)
-	var prm: Dictionary = DarknessOverlay.compute_params(xf, win, cam)
+	var prm: Dictionary = DarknessOverlay.compute_params(cam, zm, vis, cam)
 	_check((prm["hole_uv"] as Vector2).distance_to(Vector2(0.5, 0.5)) < 0.0001,
-		"lubang di tengah layar saat kamera tepat di pemain (stretch 1.5x)")
-	_check(absf(float(prm["aspect"]) - win.x / win.y) < 0.0001, "aspect = lebar/tinggi window")
-	_check(absf(float(prm["outer_h"]) - 420.0 * s / win.y) < 0.0001,
-		"radius luar 420px dunia mengikuti stretch scale")
-	_check(absf(float(prm["inner_h"]) - 180.0 * s / win.y) < 0.0001,
-		"radius dalam 180px dunia mengikuti stretch scale")
-	_check(float(prm["inner_h"]) < float(prm["outer_h"]), "radius dalam < radius luar")
+		"lubang di tengah saat kamera di pemain (aspect lebar 2.17)")
+	_check(absf(float(prm["aspect"]) - vis.x / vis.y) < 0.0001, "aspect = lebar/tinggi visible")
+	_check(absf(float(prm["view_h_world"]) - 648.0) < 0.0001,
+		"view_h_world = tinggi dunia yang terlihat")
 	# Kamera bergeser +200px dunia di x (mis. offset geser inventory) ->
-	# lubang ikut bergeser ke kiri sebesar 200px dunia dalam UV.
-	var xf2 := Transform2D(0.0, Vector2(s, s), 0.0, win * 0.5 - Vector2(s, s) * (cam + Vector2(200, 0)))
-	var prm2: Dictionary = DarknessOverlay.compute_params(xf2, win, cam)
+	# lubang bergeser kiri sebesar 200/1404 dalam UV.
+	var prm2: Dictionary = DarknessOverlay.compute_params(cam + Vector2(200, 0), zm, vis, cam)
 	var hole2: Vector2 = prm2["hole_uv"]
-	_check(absf(hole2.x - (0.5 - s * 200.0 / win.x)) < 0.0001 and absf(hole2.y - 0.5) < 0.0001,
-		"lubang mengikuti pergeseran kamera (offset inventory)")
-	# Guard: window nol -> fallback aman, tidak NaN.
-	var prm3: Dictionary = DarknessOverlay.compute_params(xf, Vector2.ZERO, cam)
+	_check(absf(hole2.x - (0.5 - 200.0 / 1404.0)) < 0.0001 and absf(hole2.y - 0.5) < 0.0001,
+		"lubang mengikuti pergeseran kamera")
+	# Zoom 2x -> world_view mengecil setengah; offset 100px dunia = 100/702 UV.
+	var prm3: Dictionary = DarknessOverlay.compute_params(cam + Vector2(100, 0), Vector2(2, 2), vis, cam)
 	var hole3: Vector2 = prm3["hole_uv"]
-	_check(hole3.distance_to(Vector2(0.5, 0.5)) < 0.0001 and prm3["outer_h"] == 0.0,
-		"fallback aman saat ukuran window nol")
+	_check(absf(hole3.x - (0.5 - 100.0 / 702.0)) < 0.0001, "formula memperhitungkan zoom kamera")
+	_check(absf(float(prm3["view_h_world"]) - 324.0) < 0.0001, "view_h_world mengecil saat zoom")
+	# Guard: visible nol -> fallback aman, tidak NaN.
+	var prm4: Dictionary = DarknessOverlay.compute_params(cam, zm, Vector2.ZERO, cam)
+	var hole4: Vector2 = prm4["hole_uv"]
+	_check(hole4.distance_to(Vector2(0.5, 0.5)) < 0.0001, "fallback aman saat visible nol")
+	# Radius dikirim dalam px dunia via uniform (180/420).
+	_check(absf(float(ov._mat.get_shader_parameter("u_inner")) - 180.0) < 0.001,
+		"u_inner=180px dunia")
+	_check(absf(float(ov._mat.get_shader_parameter("u_outer")) - 420.0) < 0.001,
+		"u_outer=420px dunia")
 	ov.queue_free()
+
+	# --- HUD layer: regresi bug komentar-tscn (layer=10 di-skip parser) ---
+	var hud_scn: PackedScene = load("res://scenes/hud.tscn")
+	var hud_inst := hud_scn.instantiate()
+	_check(hud_inst.layer == 10, "HUD layer=10 (di atas darkness layer=2)")
+	hud_inst.queue_free()
 
 	p.queue_free()
 	q.queue_free()
