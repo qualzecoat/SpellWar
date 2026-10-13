@@ -268,7 +268,8 @@ func _setup_touch_field(b: Button, title: String, charset: String, max_len: int)
 				b.set_meta("value", v)
 				_refresh_touch_button(b),
 			max_len, title, charset)
-		_set_status("DBG: open_for selesai, kb.visible=" + str(_kb.visible), false)
+		# TODO DEBUG SEMENTARA (hapus setelah diagnosis): status DBG geometri di bawah.
+		_set_status("DBG: vis=" + str(_kb.visible) + " tree=" + str(_kb.is_visible_in_tree()) + " kbsize=" + str(_kb.size) + " panelrect=" + str(_kb._panel.get_global_rect()), false)
 	)
 
 
