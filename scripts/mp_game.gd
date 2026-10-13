@@ -35,7 +35,7 @@ var _remotes: Dictionary = {}   # pid -> RemotePlayerVisual
 var _pickups: Dictionary = {}   # id -> Node2D
 var _traps: Dictionary = {}     # id -> Node2D
 var _projs: Dictionary = {}     # id -> Node2D
-var _darkness: Sprite2D = null
+var _darkness: DarknessOverlay = null
 
 
 func _ready() -> void:
@@ -80,8 +80,6 @@ func _physics_process(delta: float) -> void:
 		mv = Vector2.ZERO
 	Net.send_input(mv, delta)
 	_update_proximity()
-	if _darkness != null:
-		_darkness.position = local_visual.position
 
 
 func _read_input() -> Vector2:
@@ -461,20 +459,10 @@ func _on_server_dc() -> void:
 # ---------- kegelapan ala Among Us ----------
 
 func _make_darkness() -> void:
-	var size := 512
-	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
-	var half := size / 2.0
-	# Tekstur mencakup 1120x1120 px dunia; gelap penuh di luar vision+sedikit.
-	var world_r := 560.0
-	var clear_r := 300.0   # terang penuh
-	var dark_r := 470.0    # gelap penuh (di luar VISION_RADIUS=420)
-	for y in size:
-		for x in size:
-			var d := Vector2(x - half, y - half).length() / half * world_r
-			var a := clampf((d - clear_r) / (dark_r - clear_r), 0.0, 1.0)
-			img.set_pixel(x, y, Color(0.02, 0.02, 0.05, a * 0.93))
-	var tex := ImageTexture.create_from_image(img)
-	_darkness = Sprite2D.new()
-	_darkness.texture = tex
-	_darkness.z_index = 100
+	# Overlay full-screen via shader (scripts/darkness_overlay.gd +
+	# shaders/darkness.gdshader). Menggantikan Sprite2D radial lama yang
+	# hanya menggelapkan kotak di tengah layar. Overlay melacak posisi
+	# screen pemain sendiri tiap frame (lihat DarknessOverlay._process).
+	_darkness = DarknessOverlay.new()
+	_darkness.setup(local_visual)
 	add_child(_darkness)

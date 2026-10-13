@@ -168,6 +168,46 @@ func _init() -> void:
 	kb1.queue_free()
 	kb2.queue_free()
 
+	# --- DarknessOverlay: fix kotak gelap (shader + matematika koordinat) ---
+	var dsh: Shader = load("res://shaders/darkness.gdshader")
+	_check(dsh != null, "shader darkness.gdshader ter-load")
+	_check(dsh != null and dsh.get_code().contains("smoothstep"), "shader memakai smoothstep")
+	_check(dsh != null and dsh.get_code().contains("u_hole_uv"), "shader punya uniform u_hole_uv")
+	var ov := DarknessOverlay.new()
+	ov._ready()
+	_check(ov.layer == 2, "darkness layer=2 (di atas dunia, di bawah HUD layer=10)")
+	_check(ov._rect != null and ov._rect.mouse_filter == Control.MOUSE_FILTER_IGNORE,
+		"darkness full-rect & tidak makan input")
+	_check(ov._mat != null and ov._mat.shader == dsh, "material memakai shader darkness")
+	# Simulasi canvas transform: kamera tepat di pemain, stretch scale 1.5,
+	# window 1920x1080 -> lubang harus tepat di tengah layar (0.5, 0.5).
+	var win := Vector2(1920.0, 1080.0)
+	var s := 1.5
+	var cam := Vector2(100.0, 50.0)
+	var xf := Transform2D(0.0, Vector2(s, s), 0.0, win * 0.5 - Vector2(s, s) * cam)
+	var prm: Dictionary = DarknessOverlay.compute_params(xf, win, cam)
+	_check((prm["hole_uv"] as Vector2).distance_to(Vector2(0.5, 0.5)) < 0.0001,
+		"lubang di tengah layar saat kamera tepat di pemain (stretch 1.5x)")
+	_check(absf(float(prm["aspect"]) - win.x / win.y) < 0.0001, "aspect = lebar/tinggi window")
+	_check(absf(float(prm["outer_h"]) - 420.0 * s / win.y) < 0.0001,
+		"radius luar 420px dunia mengikuti stretch scale")
+	_check(absf(float(prm["inner_h"]) - 180.0 * s / win.y) < 0.0001,
+		"radius dalam 180px dunia mengikuti stretch scale")
+	_check(float(prm["inner_h"]) < float(prm["outer_h"]), "radius dalam < radius luar")
+	# Kamera bergeser +200px dunia di x (mis. offset geser inventory) ->
+	# lubang ikut bergeser ke kiri sebesar 200px dunia dalam UV.
+	var xf2 := Transform2D(0.0, Vector2(s, s), 0.0, win * 0.5 - Vector2(s, s) * (cam + Vector2(200, 0)))
+	var prm2: Dictionary = DarknessOverlay.compute_params(xf2, win, cam)
+	var hole2: Vector2 = prm2["hole_uv"]
+	_check(absf(hole2.x - (0.5 - s * 200.0 / win.x)) < 0.0001 and absf(hole2.y - 0.5) < 0.0001,
+		"lubang mengikuti pergeseran kamera (offset inventory)")
+	# Guard: window nol -> fallback aman, tidak NaN.
+	var prm3: Dictionary = DarknessOverlay.compute_params(xf, Vector2.ZERO, cam)
+	var hole3: Vector2 = prm3["hole_uv"]
+	_check(hole3.distance_to(Vector2(0.5, 0.5)) < 0.0001 and prm3["outer_h"] == 0.0,
+		"fallback aman saat ukuran window nol")
+	ov.queue_free()
+
 	p.queue_free()
 	q.queue_free()
 	print("test_fase3: %d lolos, %d gagal" % [_passed, _failed])
