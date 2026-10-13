@@ -10,7 +10,7 @@ signal hello_ok(room_code: String, player_id: int, is_host: bool, reconnected: b
 signal hello_error(msg: String)
 signal match_started
 signal snapshot(data: Dictionary)
-signal grid_sync(cells: Array, note: String)
+signal grid_sync(cells: Array, note: String, exchanged: bool)
 signal toast_msg(msg: String)
 signal panel_ok(kind: String)
 signal exchange_result(ok: bool, msg: String)
@@ -106,7 +106,8 @@ func _dispatch(m: Dictionary) -> void:
 		"snap":
 			snapshot.emit(m)
 		"grid":
-			grid_sync.emit(m.get("cells", []), str(m.get("note", "")))
+			grid_sync.emit(m.get("cells", []), str(m.get("note", "")),
+				bool(m.get("ex", false)))
 		"toast":
 			toast_msg.emit(str(m.get("msg", "")))
 		"pong":

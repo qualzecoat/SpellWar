@@ -348,7 +348,14 @@ func _finish_drag() -> void:
 			var cell_v = game.inventory.grid[target]
 			game.inventory.grid[target] = letter
 			if cell_v != null:
-				exchange.place_in_slot(kind, int(_drag_payload["slot"]), str(cell_v), target)
+				# Huruf yang tergusur kembali ke slot dengan ORIGIN LAMA
+				# (lubang yang ditinggalkan), bukan target — invariant
+				# "origin huruf reserved selalu null di grid" harus terjaga
+				# agar sync slot-aware di MP tetap valid.
+				var old_origin := int(_drag_payload.get("origin", -1))
+				if old_origin < 0:
+					old_origin = target
+				exchange.place_in_slot(kind, int(_drag_payload["slot"]), str(cell_v), old_origin)
 			else:
 				exchange.clear_slot(kind, int(_drag_payload["slot"]))
 			game.on_inventory_changed()

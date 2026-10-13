@@ -217,6 +217,20 @@ func return_all_to_inventory() -> void:
 	clear_slots()
 
 
+## Daftar huruf yang sedang "reserved" di slot: [{letter, origin}].
+## Dipakai client MP untuk membangun grid yang slot-aware ke server
+## (server selalu melihat permutasi valid -> tidak pernah reject/drop).
+func get_reserved() -> Array:
+	var out: Array = []
+	if not _source.is_empty():
+		out.append({"letter": str(_source["letter"]), "origin": int(_source["origin"])})
+	for p in _payments:
+		var pd: Dictionary = p
+		if not pd.is_empty():
+			out.append({"letter": str(pd["letter"]), "origin": int(pd["origin"])})
+	return out
+
+
 # ---------- protokol drag (dipanggil inventory_ui) ----------
 
 ## Coba jatuhkan huruf ke slot (sumber dulu, lalu area pembayaran).
@@ -314,12 +328,16 @@ func _recalc_cost() -> void:
 	if not _source.is_empty() and _target != "":
 		new_cost = SpellExchange.cost(str(_source["letter"]), _target)
 	if new_cost != _cost:
-		# Kembalikan pembayaran yang melebihi biaya baru ke inventory.
+		# Kembalikan pembayaran yang melebihi biaya baru KE CELL ASALNYA
+		# (bukan add_letters) — invariant: origin huruf reserved selalu null
+		# di grid, agar client MP bisa sync grid yang slot-aware ke server.
 		for i in range(new_cost, MAX_PAY):
 			var p: Dictionary = _payments[i]
 			if not p.is_empty():
 				if game != null:
-					game.inventory.add_letters([str(p["letter"])])
+					var o := int(p["origin"])
+					if o >= 0 and o < SpellInventory.CELLS:
+						game.inventory.grid[o] = str(p["letter"])
 				_payments[i] = {}
 		_cost = new_cost
 		if game != null:

@@ -49,6 +49,20 @@ func move_letter(from_idx: int, to_idx: int) -> void:
 	grid[from_idx] = tmp
 
 
+## Bangun "tampilan server" dari grid: huruf yang sedang reserved di slot
+## mesin (tidak ada di grid lokal) dikembalikan ke originnya. Hasilnya
+## selalu permutasi dari grid otoritatif server -> tidak pernah di-reject.
+## reserved: Array of {letter, origin} (lihat exchange_ui.get_reserved()).
+static func reserved_grid_view(grid: Array, reserved: Array) -> Array:
+	var g: Array = grid.duplicate()
+	for r in reserved:
+		var rd: Dictionary = r
+		var o := int(rd.get("origin", -1))
+		if o >= 0 and o < CELLS and g[o] == null:
+			g[o] = str(rd.get("letter", ""))
+	return g
+
+
 func _row_string(row: int) -> String:
 	var s := ""
 	for c in SIZE:
