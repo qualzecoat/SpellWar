@@ -3,7 +3,7 @@ extends Node2D
 ## combat (pistol/sword/trap), EP, kematian/drop/respawn,
 ## drawer + geser kamera, action button, debug tools.
 
-const RESPAWN_TIME := 30.0
+const RESPAWN_TIME := 5.0  # FIX 2026-10-13: 30 -> 5 dtk (hukuman mati = huruf jatuh)
 const PUSH_RANGE := 110.0
 const PUSH_FORCE := 500.0
 
@@ -199,12 +199,14 @@ func _on_weapon_pressed(weapon: String) -> void:
 			if not player.spend_ep(8):
 				_ep_denied()
 				return
+			player.clear_protection()  # FIX 2026-10-13: menyerang = proteksi hilang
 			player.swing_sword()
 			_melee_damage(25)
 		"PISTOL":
 			if not player.spend_ep(10):
 				_ep_denied()
 				return
+			player.clear_protection()  # FIX 2026-10-13: menyerang = proteksi hilang
 			SpellProjectile.spawn(self, player.position, player.facing, player)
 		"TRAP":
 			# FIX 2026-10-12 (Fix 3): tanpa mode pasang — tap langsung
@@ -264,6 +266,7 @@ func _place_trap_now() -> void:
 	var t := SpellTrap.place(self, player.position, player)
 	t.exploded.connect(_on_trap_exploded)
 	_refresh_trap_count()
+	player.clear_protection()  # FIX 2026-10-13: menyerang = proteksi hilang
 	hud.show_toast("Trap dipasang!")
 
 
@@ -321,13 +324,24 @@ func _on_minigame_finished(success: bool) -> void:
 	player.input_enabled = true
 	hud.set_machine_panel_open(false)  # FIX 2026-10-13
 	if success:
-		var letters: Array = []
-		for i in 5:
-			letters.append(String.chr(randi_range(65, 90)))
-		inventory.add_letters(letters)
-		rescan_words()
-		hud.show_toast("Hadiah: " + " ".join(PackedStringArray(letters)))
+		_scatter_puzzle_reward()
 	_refresh_interact()
+
+
+# FIX 2026-10-13: hadiah puzzle TIDAK langsung masuk inventory — 5 huruf
+# TERSEBAR di tanah sekitar konsol sebagai pickup (pakai sistem pickup yang
+# sama dengan death drop). Pemain harus berjalan memungutnya; huruf buyar
+# terlihat semua pemain dan BISA DICURI lawan (disengaja -> momen kontes).
+func _scatter_puzzle_reward() -> void:
+	var center: Vector2 = map.PUZZLE_POS
+	for i in 5:
+		var letter := String.chr(randi_range(65, 90))
+		var ang := randf() * TAU
+		# Radius 90-150: di luar badan konsol, di dalam ruang puzzle
+		# (walkable, tidak menembus dinding).
+		var dist := randf_range(90.0, 150.0)
+		SpellPickup.drop(self, center + Vector2(cos(ang), sin(ang)) * dist, letter)
+	hud.show_toast("Puzzle selesai! Pungut 5 huruf yang buyar!")
 
 
 # ---------- mesin tukar huruf (Fase 1b) ----------
@@ -474,6 +488,7 @@ func _do_push() -> void:
 			best_d = d
 			best = nd
 	if best != null and best.has_method("apply_knockback"):
+		player.clear_protection()  # FIX 2026-10-13: menyerang = proteksi hilang
 		best.apply_knockback(fwd, PUSH_FORCE)
 		hud.show_toast("Dorong!")
 	else:

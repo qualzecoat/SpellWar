@@ -232,5 +232,44 @@ func _init() -> void:
 		"BarSegments update untuk EP (25/100)")
 	seg.queue_free()
 
+	# --- FIX 2026-10-13: spawn protection 3 dtk ---
+	var p7 = _new_player()
+	p7.respawn_at(Vector2(100, 100))
+	_check(p7._protect_time > 0.0, "respawn -> proteksi aktif")
+	_check(p7.alive and p7.hp == p7.max_hp, "respawn -> hidup & HP penuh")
+	p7.take_damage(50)
+	_check(p7.hp == p7.max_hp, "proteksi: damage 50 ditolak")
+	p7.apply_knockback(Vector2.RIGHT, 500.0)
+	_check(p7._knock_time <= 0.0, "proteksi: knockback ditolak")
+	p7.clear_protection()
+	_check(p7._protect_time <= 0.0, "clear_protection mematikan proteksi")
+	p7.take_damage(50)
+	_check(p7.hp == p7.max_hp - 50, "tanpa proteksi: damage masuk")
+	p7.queue_free()
+
+	# --- FIX 2026-10-13: respawn 5 dtk ---
+	var game_script: GDScript = load("res://scripts/game.gd")
+	_check(absf(float(game_script.RESPAWN_TIME) - 5.0) < 0.001,
+		"RESPAWN_TIME = 5 dtk")
+
+	# --- FIX 2026-10-13: SpellPickup.drop (dipakai scatter hadiah puzzle) ---
+	# NOTE: _ready() tidak jalan di konteks SceneTree-test headless,
+	# jadi cek properti yang tidak bergantung _ready (jumlah, huruf, tipe).
+	var pickup_script: GDScript = load("res://scripts/pickup.gd")
+	var par := Node2D.new()
+	root.add_child(par)
+	for i in 5:
+		pickup_script.drop(par, Vector2(i * 40.0, 0.0), String.chr(65 + i))
+	var letters_ok := par.get_child_count() == 5
+	var idx := 0
+	for c in par.get_children():
+		if not (c is SpellPickup):
+			letters_ok = false
+		elif str(c.get("letter")) != String.chr(65 + idx):
+			letters_ok = false
+		idx += 1
+	_check(letters_ok, "drop 5 pickup huruf A-E (scatter hadiah puzzle)")
+	par.queue_free()
+
 	print("Fase2: %d lolos, %d gagal" % [_passed, _failed])
 	quit(_failed)

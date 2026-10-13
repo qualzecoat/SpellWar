@@ -28,6 +28,10 @@ var _trail_timer := 0.0
 # FIX 2026-10-13 (akar masalah trail): jejak digambar di _draw() player sendiri.
 var _trail: Array = []
 const TRAIL_MAX_AGE := 0.35
+# FIX 2026-10-13: spawn protection 3 dtk setelah respawn (kebal damage).
+const SPAWN_PROTECT_TIME := 3.0
+var _protect_time := 0.0
+var _spr: Sprite2D = null  # cache $Sprite2D (null-safe untuk test headless)
 
 signal hp_changed(hp: int, max_hp: int)
 signal ep_changed(ep: int, max_ep: int)
@@ -37,6 +41,7 @@ signal died
 func _ready() -> void:
 	add_to_group("player")
 	add_to_group("damageable")
+	_spr = get_node_or_null("Sprite2D") as Sprite2D
 
 
 func _process(delta: float) -> void:
@@ -59,6 +64,13 @@ func _process(delta: float) -> void:
 		_ep_frac = 0.0
 	if _slow_time > 0.0:
 		_slow_time -= delta
+	# FIX 2026-10-13: spawn protection — kebal damage + visual berkedip.
+	if _protect_time > 0.0:
+		_protect_time = maxf(_protect_time - delta, 0.0)
+		if _spr != null:
+			_spr.modulate.a = 0.35 + 0.65 * absf(sin(_protect_time * 14.0))
+			if _protect_time <= 0.0:
+				_spr.modulate.a = 1.0
 	# FIX 2026-10-13: trail menua di sini; digambar di _draw() (di bawah sprite).
 	if not _trail.is_empty():
 		for i in range(_trail.size() - 1, -1, -1):
@@ -147,6 +159,8 @@ func set_max_hp(value: int) -> void:
 func take_damage(amount: int) -> void:
 	if not alive:
 		return
+	if _protect_time > 0.0:
+		return  # FIX 2026-10-13: spawn protection — kebal damage
 	hp = maxi(hp - amount, 0)
 	hp_changed.emit(hp, max_hp)
 	if hp <= 0:
@@ -154,11 +168,22 @@ func take_damage(amount: int) -> void:
 		died.emit()
 
 
+## FIX 2026-10-13: proteksi hilang saat pemain menyerang
+## (mencegah abuse gebuk gratis saat kebal).
+func clear_protection() -> void:
+	if _protect_time > 0.0:
+		_protect_time = 0.0
+		if _spr != null:
+			_spr.modulate.a = 1.0
+
+
 func apply_slow(duration: float) -> void:
 	_slow_time = maxf(_slow_time, duration)
 
 
 func apply_knockback(direction: Vector2, force: float, duration: float = 0.18) -> void:
+	if not alive or _protect_time > 0.0:
+		return  # FIX 2026-10-13: spawn protection — dorong lawan ditolak
 	_knockback = direction.normalized() * force
 	_knock_time = duration
 
@@ -197,6 +222,10 @@ func respawn_at(pos: Vector2) -> void:
 	_slow_time = 0.0
 	_knock_time = 0.0
 	velocity = Vector2.ZERO
+	if _spr != null:
+		_spr.modulate.a = 1.0
+	# FIX 2026-10-13: spawn protection 3 dtk (anti spawn-camping).
+	_protect_time = SPAWN_PROTECT_TIME
 	restore_full()
 	visible = true
 	input_enabled = true
