@@ -18,6 +18,9 @@ var _main_panel: VBoxContainer
 var _join_panel: VBoxContainer
 var _lobby_panel: VBoxContainer
 var _kb: TouchKeyboard = null
+var _is_touch: bool = false
+var _name_value_l: Label = null  # label nilai di field palsu (mode touchscreen)
+var _code_value_l: Label = null
 
 
 func _ready() -> void:
@@ -117,14 +120,24 @@ func _ready() -> void:
 	_show(_main_panel)
 
 	# Keyboard virtual untuk touchscreen: keyboard OS (mis. Gboard) tidak bisa
-	# mengetik ke LineEdit pada web export (bug engine godot#99602).
+	# mengetik ke LineEdit pada web export (bug engine godot#99602), dan
+	# FOCUS_NONE ternyata tidak cukup mencegah keyboard OS muncul di
+	# browser HP (quirk sisi browser). Solusi deterministik: di touchscreen
+	# TIDAK ADA LineEdit yang bisa difokus sama sekali — field diganti
+	# "field palsu" (PanelContainer + Label, focus_mode NONE) yang tap-nya
+	# membuka keyboard buatan game. Tanpa kontrol teks yang bisa fokus,
+	# keyboard OS tidak mungkin muncul.
 	# Di PC (non-touch) LineEdit tetap normal via keyboard fisik.
 	_kb = TouchKeyboard.new()
 	add_child(_kb)
-	if _is_touch_device():
-		_setup_touch_field(_name_edit, "NICKNAME",
-			"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-		_setup_touch_field(_code_edit, "KODE ROOM", NetProto.CODE_CHARS)
+	_is_touch = _is_touch_device()
+	if _is_touch:
+		_name_value_l = _swap_touch_field(_name_edit, "Nickname", 24, false)
+		_code_value_l = _swap_touch_field(_code_edit, "XXXXXX", 28, true)
+		_setup_touch_field(_name_value_l.get_parent(), _name_value_l, "NICKNAME",
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 12)
+		_setup_touch_field(_code_value_l.get_parent(), _code_value_l, "KODE ROOM",
+			NetProto.CODE_CHARS, 6)
 
 	Net.connected_to_server.connect(func() -> void: _set_status("Terhubung.", false))
 	Net.conn_failed.connect(_on_net_failed)
@@ -173,16 +186,89 @@ func _is_touch_device() -> bool:
 	return DisplayServer.is_touchscreen_available()
 
 
-func _setup_touch_field(le: LineEdit, title: String, charset: String) -> void:
-	# Cegah keyboard OS muncul (tidak berfungsi di web export); tap field
-	# membuka keyboard buatan game. (Touch di web tiba sebagai mouse button
-	# via emulate_mouse_from_touch.)
-	le.focus_mode = Control.FOCUS_NONE
-	le.gui_input.connect(func(ev: InputEvent) -> void:
+# Membuat "field palsu" untuk touchscreen: PanelContainer + Label yang
+# TIDAK BISA FOKUS (focus_mode NONE di keduanya). LineEdit asli
+# disembunyikan (kontrol tersembunyi tidak bisa difokus engine).
+# Mengembalikan Label nilai di dalamnya.
+func _swap_touch_field(le: LineEdit, placeholder: String, font_size: int, centered: bool) -> Label:
+	var parent: Control = le.get_parent()
+	var idx := le.get_index()
+	le.visible = false
+	var panel := PanelContainer.new()
+	panel.focus_mode = Control.FOCUS_NONE
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.custom_minimum_size = le.custom_minimum_size
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.13, 0.15, 0.21)
+	sb.set_corner_radius_all(8)
+	sb.set_border_width_all(2)
+	sb.border_color = Color(0.35, 0.38, 0.48)
+	sb.content_margin_left = 12.0
+	sb.content_margin_right = 12.0
+	sb.content_margin_top = 8.0
+	sb.content_margin_bottom = 8.0
+	panel.add_theme_stylebox_override("panel", sb)
+	var lab := Label.new()
+	lab.focus_mode = Control.FOCUS_NONE
+	lab.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lab.add_theme_font_size_override("font_size", font_size)
+	lab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lab.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	lab.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	if centered:
+		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lab.set_meta("placeholder", placeholder)
+	lab.set_meta("value", "")
+	panel.add_child(lab)
+	parent.add_child(panel)
+	parent.move_child(panel, idx)
+	_refresh_touch_label(lab)
+	return lab
+
+
+func _refresh_touch_label(lab: Label) -> void:
+	var v := str(lab.get_meta("value", ""))
+	if v == "":
+		lab.text = str(lab.get_meta("placeholder", ""))
+		lab.add_theme_color_override("font_color", Color(0.45, 0.47, 0.55))
+	else:
+		lab.text = v
+		lab.add_theme_color_override("font_color", Color(1, 1, 1))
+
+
+func _get_name_text() -> String:
+	if _is_touch:
+		return str(_name_value_l.get_meta("value", ""))
+	return _name_edit.text
+
+
+func _set_name_text(v: String) -> void:
+	if _is_touch:
+		_name_value_l.set_meta("value", v)
+		_refresh_touch_label(_name_value_l)
+	else:
+		_name_edit.text = v
+
+
+func _get_code_text() -> String:
+	if _is_touch:
+		return str(_code_value_l.get_meta("value", ""))
+	return _code_edit.text
+
+
+func _setup_touch_field(panel: Control, lab: Label, title: String, charset: String, max_len: int) -> void:
+	# Tap pada field palsu -> buka keyboard buatan game. Panel & label
+	# focus_mode NONE, jadi tidak ada yang bisa memicu keyboard OS.
+	panel.gui_input.connect(func(ev: InputEvent) -> void:
 		if ev is InputEventMouseButton:
 			var mb := ev as InputEventMouseButton
 			if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-				_kb.open_for(le, title, charset)
+				_kb.open_for(
+					func() -> String: return str(lab.get_meta("value", "")),
+					func(v: String) -> void:
+						lab.set_meta("value", v)
+						_refresh_touch_label(lab),
+					max_len, title, charset)
 	)
 
 
@@ -195,7 +281,7 @@ func _set_status(t: String, is_error: bool) -> void:
 # ---------- aksi ----------
 
 func _nickname() -> String:
-	return _name_edit.text.strip_edges()
+	return _get_name_text().strip_edges()
 
 
 func _on_solo() -> void:
@@ -218,7 +304,7 @@ func _on_join_go() -> void:
 	if n == "":
 		_set_status("Isi nickname dulu.", true)
 		return
-	var code := _code_edit.text.strip_edges().to_upper()
+	var code := _get_code_text().strip_edges().to_upper()
 	if code.length() != 6:
 		_set_status("Kode room 6 karakter.", true)
 		return
@@ -284,7 +370,7 @@ func _on_server_dc() -> void:
 func _load_name() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(CFG_PATH) == OK:
-		_name_edit.text = str(cfg.get_value("menu", "nickname", ""))
+		_set_name_text(str(cfg.get_value("menu", "nickname", "")))
 
 
 func _save_name() -> void:

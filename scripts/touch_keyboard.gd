@@ -4,7 +4,9 @@ extends Control
 ## Alasan: keyboard OS (mis. Gboard) tidak bisa mengetik ke LineEdit pada
 ## web export Godot (bug engine: godotengine/godot#99602) — tidak ada fix
 ## via project setting yang kredibel, jadi solusinya keyboard buatan sendiri.
-## Dipakai dari menu.gd: tap pada field (touchscreen) -> open_for(field,...).
+## Dipakai dari menu.gd: tap pada field (touchscreen) -> open_for(...).
+## Target berupa Callable get/set agar bisa dipakai untuk kontrol apa pun
+## (di touchscreen field-nya BUKAN LineEdit — lihat menu.gd).
 ## Keyboard fisik tetap didukung via _unhandled_key_input saat terbuka
 ## (berguna untuk laptop touchscreen).
 
@@ -13,7 +15,9 @@ signal closed
 const KEY_H := 54.0
 const PER_ROW := 8
 
-var _target: LineEdit = null
+var _get_text: Callable
+var _set_text: Callable
+var _max_len: int = 0
 var _charset := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 var _panel: PanelContainer
 var _title_l: Label
@@ -83,8 +87,14 @@ func _on_dim_input(ev: InputEvent) -> void:
 			close()
 
 
-func open_for(field: LineEdit, title: String, charset: String) -> void:
-	_target = field
+func _has_target() -> bool:
+	return _get_text.is_valid() and _set_text.is_valid()
+
+
+func open_for(get_text: Callable, set_text: Callable, max_len: int, title: String, charset: String) -> void:
+	_get_text = get_text
+	_set_text = set_text
+	_max_len = max_len
 	_charset = charset
 	_title_l.text = title
 	_rebuild_keys()
@@ -94,7 +104,8 @@ func open_for(field: LineEdit, title: String, charset: String) -> void:
 
 func close() -> void:
 	visible = false
-	_target = null
+	_get_text = Callable()
+	_set_text = Callable()
 	closed.emit()
 
 
@@ -148,29 +159,30 @@ func _make_key(text: String, cb: Callable) -> Button:
 
 
 func _press(ch: String) -> void:
-	if _target == null:
+	if not _has_target():
 		return
-	if _target.max_length > 0 and _target.text.length() >= _target.max_length:
+	var t: String = _get_text.call()
+	if _max_len > 0 and t.length() >= _max_len:
 		return
-	_target.text += ch
+	_set_text.call(t + ch)
 	_update_preview()
 
 
 func _backspace() -> void:
-	if _target == null:
+	if not _has_target():
 		return
-	var t := _target.text
+	var t: String = _get_text.call()
 	if t.length() > 0:
-		_target.text = t.substr(0, t.length() - 1)
+		_set_text.call(t.substr(0, t.length() - 1))
 	_update_preview()
 
 
 func _update_preview() -> void:
-	_preview_l.text = _target.text if _target != null else ""
+	_preview_l.text = _get_text.call() if _has_target() else ""
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if not visible or _target == null:
+	if not visible or not _has_target():
 		return
 	var k := event as InputEventKey
 	if k == null or not k.pressed or k.is_echo():
