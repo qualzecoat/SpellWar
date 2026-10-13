@@ -7,7 +7,7 @@
 [ext_resource type="Script" path="res://scripts/joystick.gd" id="5_joy"]
 [ext_resource type="Script" path="res://scripts/debug_panel.gd" id="6_dbg"]
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer"]
 script = ExtResource("1_hud")
 
 [node name="TopLeft" type="VBoxContainer" parent="."]
