@@ -21,7 +21,7 @@ var _lobby_panel: VBoxContainer
 
 func _ready() -> void:
 	if "--server" in OS.get_cmdline_user_args():
-		get_tree().change_scene_to_file("res://scenes/server_main.tscn")
+		call_deferred("_go_server")
 		return
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var bg := ColorRect.new()
@@ -126,6 +126,10 @@ func _ready() -> void:
 	if Net.last_error != "":
 		_set_status(Net.last_error, true)
 		Net.last_error = ""
+
+
+func _go_server() -> void:
+	get_tree().change_scene_to_file("res://scenes/server_main.tscn")
 
 
 func _vbox(sep: int) -> VBoxContainer:

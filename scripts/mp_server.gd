@@ -62,9 +62,13 @@ func _process(delta: float) -> void:
 		p["t"] = float(p["t"]) + delta
 		var st := ws.get_ready_state()
 		if st == WebSocketPeer.STATE_OPEN:
+			var got_hello := false
 			for m in _read_ws(ws):
-				_handle_hello(ws, m)
-			_pending.remove_at(i)
+				if str(m.get("t", "")) == "hello":
+					_handle_hello(ws, m)
+					got_hello = true
+			if got_hello:
+				_pending.remove_at(i)
 		elif st == WebSocketPeer.STATE_CLOSED or float(p["t"]) > 15.0:
 			ws.close()
 			_pending.remove_at(i)
@@ -116,6 +120,7 @@ func _conn_of(room: Room, pid: int) -> Dictionary:
 # ---------- hello / room ----------
 
 func _handle_hello(ws: WebSocketPeer, m: Dictionary) -> void:
+	print("[server] hello diterima: %s" % JSON.stringify(m).left(120))
 	if str(m.get("t", "")) != "hello":
 		return
 	var name := str(m.get("name", "")).strip_edges().left(16)
