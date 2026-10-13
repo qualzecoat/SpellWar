@@ -56,3 +56,12 @@ static func parse(text: String) -> Dictionary:
 	if res is Dictionary and (res as Dictionary).has("t"):
 		return res
 	return {}
+
+
+## FIX 2026-10-13: kapan client MP boleh mengirim input gerak — diblokir
+## saat mati / panel mesin tukar / minigame terbuka, tapi TIDAK saat
+## inventory (drawer) saja yang terbuka (desain: karakter TETAP BISA GERAK
+## saat inventory terbuka, hanya action yang mati).
+static func movement_blocked(dead: bool, exchange_open: bool,
+		minigame_visible: bool) -> bool:
+	return dead or exchange_open or minigame_visible

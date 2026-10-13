@@ -219,6 +219,28 @@ func _init() -> void:
 	_check(hud_inst.layer == 10, "HUD layer=10 (di atas darkness layer=2)")
 	hud_inst.queue_free()
 
+	# --- Bug 2026-10-13 (1): drop huruf ke slot sumber mesin tukar ---
+	var ex = load("res://scripts/exchange_ui.gd").new()
+	ex._ready()
+	ex.open_panel()
+	# Ukuran manual untuk tombol sumber (tanpa layout tree).
+	ex._source_btn.position = Vector2(20, 200)
+	ex._source_btn.size = Vector2(60, 60)
+	var mp_src: Vector2 = ex._source_btn.get_global_rect().get_center()
+	_check(ex.try_drop_slot(mp_src, "K", 5, "inv"), "drop huruf ke slot sumber diterima")
+	_check(str(ex._source.get("letter", "")) == "K" and int(ex._source.get("origin", -1)) == 5,
+		"huruf + origin tersimpan di slot sumber")
+	_check(not ex.try_drop_slot(mp_src, "Z", 6, "inv"), "drop ke slot sumber terisi ditolak")
+	ex.queue_free()
+
+	# --- Bug 2026-10-13 (2): gerak tetap boleh saat inventory saja terbuka ---
+	_check(not NetProto.movement_blocked(false, false, false),
+		"gerak BOLEH saat hanya inventory terbuka")
+	_check(NetProto.movement_blocked(true, false, false), "gerak diblokir saat mati")
+	_check(NetProto.movement_blocked(false, true, false), "gerak diblokir saat mesin tukar terbuka")
+	_check(NetProto.movement_blocked(false, false, true), "gerak diblokir saat minigame terbuka")
+	_check(NetProto.movement_blocked(false, true, true), "gerak diblokir saat exchange+minigame")
+
 	p.queue_free()
 	q.queue_free()
 	print("test_fase3: %d lolos, %d gagal" % [_passed, _failed])

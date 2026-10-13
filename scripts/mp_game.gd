@@ -50,6 +50,8 @@ func _ready() -> void:
 	hud.weapon_pressed.connect(_on_weapon_pressed)
 	hud.interact_pressed.connect(_on_interact_pressed)
 	inv_ui.game = self
+	inv_ui.exchange = exchange_ui  # FIX 2026-10-13: tanpa ini drop huruf ke
+	# slot mesin tukar/puzzle gagal diam-diam di MP (exchange == null).
 	inv_ui.closed.connect(close_inventory)
 	exchange_ui.game = self
 	exchange_ui.confirmed.connect(_on_exchange_confirmed)
@@ -76,10 +78,23 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	var mv := _read_input()
-	if ui_open or _dead:
+	# FIX 2026-10-13: inventory (drawer) saja terbuka -> gerak TETAP BOLEH
+	# (desain); yang memblokir hanya: mati / mesin tukar / minigame.
+	if NetProto.movement_blocked(_dead, _exchange_open, minigame.visible):
 		mv = Vector2.ZERO
 	Net.send_input(mv, delta)
 	_update_proximity()
+
+
+## FIX 2026-10-13: samakan dengan game.gd (solo) — tombol E = interact,
+## Esc = tutup inventory. Sebelumnya MP tidak menangani E sama sekali.
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("interact"):
+		if not ui_open and not _dead:
+			_on_interact_pressed()
+	elif event.is_action_pressed("ui_cancel"):
+		if inv_ui.is_open():
+			close_inventory()
 
 
 func _read_input() -> Vector2:
@@ -375,6 +390,9 @@ func close_exchange() -> void:
 		return
 	inv_ui.cancel_drag()
 	exchange_ui.return_all_to_inventory()
+	# FIX 2026-10-13: huruf yang kembali ke inventory harus di-sync ke server
+	# (sebelumnya desync: server tetap menganggap huruf di slot sudah hangus).
+	on_inventory_changed()
 	exchange_ui.close_panel()
 	inv_ui.close_panel()
 	_exchange_open = false

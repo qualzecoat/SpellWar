@@ -43,15 +43,11 @@ func _make_styles() -> void:
 
 
 func _build() -> void:
-	# FIX 2026-10-12 (Fix 1): root & dim TIDAK boleh menelan input — joystick
-	# harus tetap menerima sentuhan saat drawer terbuka (gerak tetap boleh).
-	# Hanya drawer (Panel) yang memakan input di areanya sendiri.
+	# FIX 2026-10-13: dim full-screen DIHAPUS — lapisan hitam 50% itu ikut
+	# meredupkan area terang vision (bug laporan user). Drawer yang opaque
+	# sudah cukup sebagai penanda modal; root tetap IGNORE agar joystick
+	# dan input lain tidak termakan saat drawer terbuka.
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var dim := ColorRect.new()
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0, 0, 0, 0.5)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(dim)
 
 	_drawer = Panel.new()
 	_drawer.anchor_left = 1.0
