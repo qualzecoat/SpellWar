@@ -13,9 +13,16 @@ static func _ensure_loaded() -> void:
 	if _loaded:
 		return
 	_loaded = true
-	var img := Image.load_from_file(MapDataGen.WALK_MASK)
-	if img == null or img.is_empty():
-		push_error("MapData: gagal load " + MapDataGen.WALK_MASK)
+	# Mask disimpan sebagai base64-text (assets/map_walk.b64) agar aman
+	# di-push via push_files (tool teks). Isinya PNG grayscale 1 byte/px.
+	var f := FileAccess.open("res://assets/map_walk.b64", FileAccess.READ)
+	if f == null:
+		push_error("MapData: gagal buka res://assets/map_walk.b64")
+		return
+	var img := Image.new()
+	if img.load_png_from_buffer(Marshalls.base64_to_raw(f.get_as_text())) != OK \
+			or img.is_empty():
+		push_error("MapData: gagal decode mask walkability")
 		return
 	if img.get_format() != Image.FORMAT_L8:
 		img.convert(Image.FORMAT_L8)

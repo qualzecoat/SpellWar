@@ -8,7 +8,7 @@ const GRID_W := 348
 const GRID_H := 289
 const MAP_W := 4454.4
 const MAP_H := 3699.2
-const WALK_MASK := "res://assets/map_walk.png"
+const WALK_MASK := "res://assets/map_walk.b64"  # base64-text (push-safe)
 const TEMP_SPAWN := Vector2(2003.2, 1747.2)
 const TEMP_SPAWN_SLOTS: Array = [
 	Vector2(2099.2, 1747.2),  # MP sementara 3b1
