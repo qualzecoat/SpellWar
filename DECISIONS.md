@@ -139,3 +139,23 @@
   (MP: 8 offset kecil) — spawn resmi + random di 3b2.
 - Server di-rebuild + restart (script server/shared berubah: map.gd, map_data.gd,
   mp_server.gd, net_proto.gd).
+
+## 2026-10-15 — Map 3b1 jadi scene editable (user edit sendiri)
+
+- User tidak puas dengan hasil trace map 3b1 → mau turun tangan edit di Godot PC.
+- Keputusan: map diubah dari data hasil-generate menjadi `scenes/map_3b.tscn`
+  sebagai SINGLE SOURCE OF TRUTH yang editable: `Walls` = StaticBody2D berisi
+  CollisionShape2D per wall rect (`Wall_001`.., nama stabil), `Floor` = Node2D
+  berisi Polygon2D per floor rect, `Background` seukuran map. Script
+  `scripts/map_3b.gd` (`class_name Map3B`) hanya berisi konstanta sementara 3b1.
+- Walkability: pendekatan (a) exporter — `tools/export_map_data.py` membaca wall
+  rect dari .tscn → rasterisasi grid → regenerasi `scripts/map_data_gen.gd`
+  (`WALL_RECTS`, `WALK_MASK_B64`). Alasan: deterministik, testable headless,
+  dipakai server tanpa butuh physics space. Round-trip terverifikasi identik
+  (mask 0 sel beda vs trace lama).
+- `main.tscn`, `mp_main.tscn`, `server_main.tscn` instance `map_3b.tscn` sebagai
+  node `Map` (server BUTUH collision fisik: `server_player.gd` pakai
+  `move_and_slide`). `scripts/map.gd` dihapus; `assets/map_walk.png` (rusak)
+  dihapus; `tools/trace_map.py` disimpan sebagai riwayat.
+- Aturan: edit scene → `python3 tools/export_map_data.py` → commit/push →
+  deploy web + rebuild server. `map_data_gen.gd` JANGAN diedit manual.
