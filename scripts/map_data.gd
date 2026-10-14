@@ -63,7 +63,7 @@ static func clamp_to_walkable(pos: Vector2, radius: float = 64.0) -> Vector2:
 					best_d = d
 					best = c
 	if best.x < 0.0:
-		return MapDataGen.TEMP_SPAWN  # fallback, praktis tidak terjadi
+		return Map3B.SPAWN_POS  # fallback, praktis tidak terjadi
 	return best
 
 

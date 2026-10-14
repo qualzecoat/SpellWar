@@ -24,7 +24,7 @@ func _init() -> void:
 		"ukuran mask = GRID_W x GRID_H")
 
 	# --- spot check walkable / wall ---
-	_check(MapData.is_walkable(MapDataGen.TEMP_SPAWN), "TEMP_SPAWN walkable")
+	_check(MapData.is_walkable(Map3B.SPAWN_POS), "TEMP_SPAWN walkable")
 	_check(not MapData.is_walkable(Vector2(-100, -100)),
 		"luar bounds tidak walkable")
 	# Titik tengah blok tembok interior (dari trace): harus wall.
@@ -44,8 +44,8 @@ func _init() -> void:
 	for i in MapData._walk.size():
 		if MapData._walk[i] > 127:
 			total += 1
-	var scx := int(MapDataGen.TEMP_SPAWN.x / MapDataGen.CELL_PX)
-	var scy := int(MapDataGen.TEMP_SPAWN.y / MapDataGen.CELL_PX)
+	var scx := int(Map3B.SPAWN_POS.x / MapDataGen.CELL_PX)
+	var scy := int(Map3B.SPAWN_POS.y / MapDataGen.CELL_PX)
 	var seen := PackedByteArray()
 	seen.resize(gw * gh)
 	var queue: Array = [[scx, scy]]
@@ -70,7 +70,7 @@ func _init() -> void:
 
 	# --- containment: scatter tidak pernah di dalam tembok ---
 	var bad := 0
-	var centers := [MapDataGen.TEMP_SPAWN, Vector2(1747.8, 1470.7),
+	var centers := [Map3B.SPAWN_POS, Vector2(1747.8, 1470.7),
 		Vector2(0, 0), Vector2(4000, 3000)]
 	for center in centers:
 		for i in 60:
@@ -82,10 +82,10 @@ func _init() -> void:
 	var cl := MapData.clamp_to_walkable(Vector2(1747.8, 1470.7))
 	_check(MapData.is_walkable(cl), "clamp_to_walkable dari tembok -> walkable")
 
-	# --- determinisme trace: jumlah rect hasil merge ---
-	# (281/273 = hasil trace klasifikasi merah-dominan, fix 2026-10-15)
-	_check(MapDataGen.WALL_RECTS.size() == 281, "wall rects = 281 (trace)")
-	_check(MapDataGen.FLOOR_RECTS.size() == 273, "floor rects = 273 (trace)")
+	# --- determinisme: jumlah rect = hasil exporter dari scenes/map_3b.tscn ---
+	# (281/273 — round-trip exporter terverifikasi identik dengan trace 3b1)
+	_check(MapDataGen.WALL_RECTS.size() == 281, "wall rects = 281 (exporter)")
+	_check(MapDataGen.FLOOR_RECTS.size() == 273, "floor rects = 273 (exporter)")
 
 	print("map: %d lolos, %d gagal" % [_passed, _failed])
 	quit(_failed)

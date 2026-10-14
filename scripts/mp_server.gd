@@ -6,8 +6,8 @@ extends Node2D
 ## Tanggung jawab: room/lobby, simulasi fisika pemain, combat, pickup,
 ## jebakan, proyektil, kata/efek, respawn, reconnect 90 detik.
 ## Client tidak dipercaya — semua divalidasi wajar di sini.
-
-const MapScript = preload("res://scripts/map.gd")
+## Geometri map: scenes/map_3b.tscn (di-instance via server_main.tscn);
+## konstanta map via class Map3B (scripts/map_3b.gd).
 
 
 class Room:
@@ -28,15 +28,13 @@ var _tcp := TCPServer.new()
 var _pending: Array = []   # {ws: WebSocketPeer, t: float} — handshake/hello
 var _conns: Array = []     # {ws: WebSocketPeer, room: Room, pid: int}
 var _rooms: Dictionary = {}  # code -> Room
-var _map: Node2D = null
 var _players_node: Node2D = null
 var _snap_acc := 0.0
 
 
 func _ready() -> void:
-	_map = MapScript.new()
-	_map.name = "Map"
-	add_child(_map)
+	# Node Map (map_3b.tscn) sudah ada di server_main.tscn — collision dinding
+	# dipakai simulasi fisika server (move_and_slide).
 	_players_node = Node2D.new()
 	_players_node.name = "Players"
 	add_child(_players_node)
@@ -260,12 +258,12 @@ func _handle(c: Dictionary, m: Dictionary) -> void:
 		"push":
 			_on_push(room, p)
 		"interact_puzzle":
-			if p.position.distance_to(MapScript.PUZZLE_POS) < 220.0:
+			if p.position.distance_to(Map3B.PUZZLE_POS) < 220.0:
 				_send(p.peer, "panel_ok", {"kind": "puzzle"})
 		"puzzle_done":
 			_on_puzzle_done(room, p)
 		"interact_exchange":
-			if p.position.distance_to(MapScript.EXCHANGE_POS) < 220.0:
+			if p.position.distance_to(Map3B.EXCHANGE_POS) < 220.0:
 				_send(p.peer, "panel_ok", {"kind": "exchange"})
 		"exchange_do":
 			_on_exchange(room, p, m)
@@ -411,7 +409,7 @@ func _on_push(room: Room, p: ServerPlayer) -> void:
 func _on_puzzle_done(room: Room, p: ServerPlayer) -> void:
 	if not room.started or not p.alive or p.disconnected:
 		return
-	if p.position.distance_to(MapScript.PUZZLE_POS) > 260.0:
+	if p.position.distance_to(Map3B.PUZZLE_POS) > 260.0:
 		return  # validasi wajar: harus dekat konsol
 	# Cooldown 30 dtk per pemain (desain) — cegah farming satu konsol.
 	if p.puzzle_cd > 0.0:

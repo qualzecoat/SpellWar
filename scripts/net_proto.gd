@@ -26,7 +26,7 @@ const PUZZLE_COOLDOWN := 30.0
 
 # 3b1 SEMENTARA: 1 titik + offset kecil (8 slot agar test & MP tetap jalan).
 # Spawn resmi (8 area) + random spawn: 3b2.
-const SPAWN_SLOTS: Array = MapDataGen.TEMP_SPAWN_SLOTS
+const SPAWN_SLOTS: Array = Map3B.TEMP_SPAWN_SLOTS
 
 # Kode room 6 karakter — tanpa huruf/angka ambigu (0/O, 1/I/L dibuang).
 const CODE_CHARS := "ABCDEFGHJKMNPQRSTUVWXYZ23456789"

@@ -335,8 +335,7 @@ func _init() -> void:
 	p3.alive = true
 	# 3b1: belum ada mesin puzzle — pakai sentinel PUZZLE_POS agar validasi
 	# jarak lolos; yang diuji: cooldown + scatter containment (walkable).
-	var MapScript3b1 = load("res://scripts/map.gd")
-	p3.position = MapScript3b1.PUZZLE_POS
+	p3.position = Map3B.PUZZLE_POS
 	srv._on_puzzle_done(room, p3)
 	_check(absf(p3.puzzle_cd - NetProto.PUZZLE_COOLDOWN) < 0.001,
 		"puzzle_done: cooldown 30 dtk diset")
