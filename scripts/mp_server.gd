@@ -582,7 +582,9 @@ func _respawn_player(room: Room, p: ServerPlayer) -> void:
 
 
 func _spawn_pickup(room: Room, pos: Vector2, letter: String) -> void:
-	room.pickups.append({"id": room.next_ent, "letter": letter, "pos": pos})
+	# Containment 3b1: pickup tidak boleh spawn di dalam tembok (merah = absolut).
+	room.pickups.append({"id": room.next_ent, "letter": letter,
+		"pos": MapData.clamp_to_walkable(pos)})
 	room.next_ent += 1
 
 

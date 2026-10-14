@@ -25,8 +25,7 @@ func _ready() -> void:
 	player.ep_changed.connect(_on_ep_changed)
 	player.died.connect(_on_player_died)
 	hud.debug_toggled.connect(_on_debug_toggled)
-	map.puzzle_zone_changed.connect(_on_puzzle_zone)
-	map.exchange_zone_changed.connect(_on_exchange_zone)
+	# 3b1: zona mesin belum ada (baru 3b3/3b4) — connect dipindah ke sana.
 	debug_panel.hurt_self_pressed.connect(_on_debug_hurt)
 	debug_panel.give_letter_pressed.connect(_on_debug_give_letter)
 	debug_panel.spawn_dummy_pressed.connect(_on_debug_spawn_dummy)
@@ -264,11 +263,10 @@ func _scatter_puzzle_reward() -> void:
 	var center: Vector2 = map.PUZZLE_POS
 	for i in 5:
 		var letter := String.chr(randi_range(65, 90))
-		var ang := randf() * TAU
-		# Radius di luar badan konsol, di dalam ruang puzzle (walkable).
-		var dist := randf_range(
+		# Containment 3b1: huruf tidak boleh buyar di dalam tembok.
+		var at := MapData.random_walkable_near(center,
 			NetProto.SCATTER_REWARD_MIN, NetProto.SCATTER_REWARD_MAX)
-		SpellPickup.drop(self, center + Vector2(cos(ang), sin(ang)) * dist, letter)
+		SpellPickup.drop(self, at, letter)
 	hud.show_toast("Puzzle selesai! Pungut 5 huruf yang buyar!")
 
 
@@ -294,10 +292,10 @@ func _drop_all_letters() -> void:
 		var v = inventory.grid[i]
 		if v == null:
 			continue
-		var ang := randf() * TAU
-		var dist := randf_range(
+		# Containment 3b1: huruf tidak boleh jatuh di dalam tembok.
+		var at := MapData.random_walkable_near(origin,
 			NetProto.SCATTER_DEATH_MIN, NetProto.SCATTER_DEATH_MAX)
-		SpellPickup.drop(self, origin + Vector2(cos(ang), sin(ang)) * dist, str(v))
+		SpellPickup.drop(self, at, str(v))
 		inventory.grid[i] = null
 	on_inventory_changed()
 

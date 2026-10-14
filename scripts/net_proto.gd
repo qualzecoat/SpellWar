@@ -24,14 +24,9 @@ const PROTECT_TIME := 3.0
 # Cooldown minigame puzzle per pemain (desain): cegah farming satu konsol.
 const PUZZLE_COOLDOWN := 30.0
 
-# 8 slot spawn — adaptasi map v1 (ruang ekstraksi + ruang puzzle + koridor).
-# Semua titik walkable (di dalam ruangan, jauh dari dinding/mesin).
-const SPAWN_SLOTS: Array = [
-	Vector2(760, 460), Vector2(1240, 460),   # ekstraksi: sudut utara
-	Vector2(760, 840), Vector2(1240, 840),   # ekstraksi: sudut selatan
-	Vector2(860, -240), Vector2(1140, -240),  # puzzle: sudut utara
-	Vector2(1000, 160), Vector2(1000, 340),  # koridor
-]
+# 3b1 SEMENTARA: 1 titik + offset kecil (8 slot agar test & MP tetap jalan).
+# Spawn resmi (8 area) + random spawn: 3b2.
+const SPAWN_SLOTS: Array = MapDataGen.TEMP_SPAWN_SLOTS
 
 # Kode room 6 karakter — tanpa huruf/angka ambigu (0/O, 1/I/L dibuang).
 const CODE_CHARS := "ABCDEFGHJKMNPQRSTUVWXYZ23456789"

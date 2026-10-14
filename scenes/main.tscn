@@ -16,7 +16,7 @@ script = ExtResource("1_game")
 script = ExtResource("3_map")
 
 [node name="Player" type="CharacterBody2D" parent="."]
-position = Vector2(1000, 300)
+position = Vector2(2003.2, 1747.2)
 z_index = 1
 script = ExtResource("2_player")
 
