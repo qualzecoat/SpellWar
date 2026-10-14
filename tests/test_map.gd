@@ -83,8 +83,9 @@ func _init() -> void:
 	_check(MapData.is_walkable(cl), "clamp_to_walkable dari tembok -> walkable")
 
 	# --- determinisme trace: jumlah rect hasil merge ---
-	_check(MapDataGen.WALL_RECTS.size() == 254, "wall rects = 254 (trace)")
-	_check(MapDataGen.FLOOR_RECTS.size() == 268, "floor rects = 268 (trace)")
+	# (281/273 = hasil trace klasifikasi merah-dominan, fix 2026-10-15)
+	_check(MapDataGen.WALL_RECTS.size() == 281, "wall rects = 281 (trace)")
+	_check(MapDataGen.FLOOR_RECTS.size() == 273, "floor rects = 273 (trace)")
 
 	print("map: %d lolos, %d gagal" % [_passed, _failed])
 	quit(_failed)

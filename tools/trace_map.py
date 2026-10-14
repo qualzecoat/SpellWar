@@ -2,8 +2,18 @@
 """Trace petunjuk-area-map.png -> data map untuk Fase 3b1.
 
 Sumber: ~/workspace/game/map-design/petunjuk-area-map.png (3477x3065).
-Legenda: merah = tembok absolut, putih = lantai walkable,
-kotak legenda kiri-atas DIABAIKAN (bukan bagian map).
+Legenda: MERAH = tembok absolut, selain itu = lantai walkable.
+Kotak legenda kiri-atas DIABAIKAN (bukan bagian map).
+
+ Klasifikasi dibalik (fix 2026-10-15): TEMBOK = piksel merah-dominan SAJA
+ (sample warna aktual tembok: median rgb (229,79,66); tes (r>150)&(g<120)&(b<120)
+ mencakup penuh dinding tanpa menyentuh pink spawn (245,132,199) / kuning
+ ekstraksi (252,176,64) — keduanya 0px terdeteksi tembok).
+ Konsekuensi: overlay desain (kotak hijau/biru/kuning/pink/cyan untuk
+ mesin/spawn/zona interaksi) menjadi LANTAI BERSIH di 3b1 — mesin dapat
+ collision sendiri di 3b3/3b4, zona interaksi harus walkable.
+ Garis outline hitam tipis ikut walkable (negligible); merah tetap tembok
+ sehingga tidak ada false-connection antar ruangan.
 
 Output (di-commit ke repo):
   assets/map_walk.png      - mask walkability (putih=walkable) resolusi grid
@@ -42,17 +52,20 @@ def main() -> None:
     H, W = r.shape
     print(f"sumber: {W}x{H}", flush=True)
 
-    # 1. Walkable = putih-ish (threshold 150 menjaga konektivitas koridor).
-    #    Langsung downsample ke grid sel via majority vote (vektorisasi, cepat).
-    white = (r > 150) & (g > 150) & (b > 150)
+    # 1. TEMBOK = piksel merah-dominan SAJA (lihat docstring).
+    #    Selain itu = walkable: lantai putih, outline hitam tipis, dan semua
+    #    overlay desain (mesin/spawn/zona interaksi) -> LANTAI BERSIH di 3b1.
+    #    Downsample ke grid sel via majority vote (vektorisasi, cepat).
+    wall_px = (r > 150) & (g < 120) & (b < 120)
+    walk_px = ~wall_px
     gh = math.ceil(H / CELL_DESIGN)
     gw = math.ceil(W / CELL_DESIGN)
     pad_h = int(gh * CELL_DESIGN - H)
     pad_w = int(gw * CELL_DESIGN - W)
-    wp = np.pad(white, ((0, pad_h), (0, pad_w)))
+    wp = np.pad(walk_px, ((0, pad_h), (0, pad_w)))
     ch = int(CELL_DESIGN)
     grid = wp.reshape(gh, ch, gw, ch).mean(axis=(1, 3)) > 0.5
-    print(f"grid: {gw}x{gh} sel, putih: {grid.sum()} ({100.0 * grid.sum() / grid.size:.1f}%)",
+    print(f"grid: {gw}x{gh} sel, walkable: {grid.sum()} ({100.0 * grid.sum() / grid.size:.1f}%)",
           flush=True)
 
     # 2. Komponen terbesar = map. Kotak legenda kiri-atas otomatis ter-exclude
@@ -72,23 +85,24 @@ def main() -> None:
         assert xs.max() < 110 and ys.max() < 70 and xs.min() < 20 and ys.min() < 20, \
             "komponen kedua bukan legenda — ada area walkable terpisah!"
     walk = (lab == biggest)
-    # 3. Isi lubang interior KECIL saja (cat mesin/angka di atas lantai, <20 sel).
-    #    Blok merah besar adalah tembok interior — JANGAN diisi.
-    inv_lab, inv_n = label(~walk)
-    inv_sizes = np.bincount(inv_lab.ravel())
-    inv_sizes[0] = 0
+    # 3. Bersihkan noise: komponen TEMBOK kecil (<5 sel, fully interior) adalah
+    #    artefak anti-aliasing, bukan tembok disengaja (tembok disengaja = blok
+    #    merah besar). Merah = tembok absolut tetap berlaku untuk sisanya.
+    wall_lab, wall_n = label(~walk)
+    wall_sizes = np.bincount(wall_lab.ravel())
+    wall_sizes[0] = 0
     filled = walk.copy()
-    n_filled = 0
-    for i in range(1, inv_n + 1):
-        sz = int(inv_sizes[i])
-        if sz >= 20:
+    n_cleaned = 0
+    for i in range(1, wall_n + 1):
+        sz = int(wall_sizes[i])
+        if sz >= 5:
             continue
-        ys, xs = np.where(inv_lab == i)
+        ys, xs = np.where(wall_lab == i)
         if ys.min() == 0 or ys.max() == gh - 1 or xs.min() == 0 or xs.max() == gw - 1:
-            continue  # menyentuh tepi = eksterior
-        filled[inv_lab == i] = True
-        n_filled += 1
-    print(f"lubang interior kecil diisi: {n_filled} lubang", flush=True)
+            continue  # menyentuh tepi = eksterior, biarkan
+        filled[wall_lab == i] = True
+        n_cleaned += 1
+    print(f"noise tembok kecil dibersihkan: {n_cleaned} speck", flush=True)
 
     # 4. Konektivitas: filled harus 1 komponen utuh (tidak ada ruangan terisolasi).
     lab2, n2 = label(filled)

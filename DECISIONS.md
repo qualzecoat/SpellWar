@@ -116,9 +116,14 @@
 
 - Sumber: `petunjuk-area-map.png` (legenda warna) — merah = tembok absolut,
   putih = walkable. Aset hand-drawn hanya sketsa; redraw di Godot (optimize).
-- Tracing offline `tools/trace_map.py`: threshold putih 150 (jaga konektivitas),
-  komponen putih terbesar = map (kotak legenda kiri-atas otomatis ter-exclude),
-  isi hanya lubang kecil (cat mesin/angka); blok merah besar = tembok interior.
+- Tracing offline `tools/trace_map.py`: klasifikasi dibalik — TEMBOK = piksel
+  merah-dominan SAJA `(r>150)&(g<120)&(b<120)` (sample tembok aktual median
+  (229,79,66); pink spawn & kuning ekstraksi 0px terdeteksi tembok); selain itu =
+  walkable. Overlay desain (kotak hijau/biru/kuning/pink/cyan mesin/spawn/zona
+  interaksi) menjadi LANTAI BERSIH di 3b1 (mesin dapat collision sendiri di
+  3b3/3b4). Kotak legenda kiri-atas tetap ter-exclude (komponen terpisah).
+  Fix 2026-10-15: sebelumnya walkable = putih-ish sehingga overlay berwarna
+  ke-trace sebagai blob tembok di atas lantai.
 - Skala: 1 kotak grid desain (~50px) = 64px game; sel trace 10px desain (12.8px game).
   Ukuran map: 4454.4 x 3699.2 px (69.6 x 57.8 grid).
 - Verifikasi: flood fill 100% reachable; badan player (disk r=22px) 100% reachable;
