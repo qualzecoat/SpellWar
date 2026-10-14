@@ -5,7 +5,7 @@ extends Area2D
 
 const SPEED := 700.0
 const RANGE := 900.0
-const DAMAGE := 50
+const DAMAGE := NetProto.PISTOL_DAMAGE
 
 var direction := Vector2.RIGHT
 var shooter: Node2D = null

@@ -38,6 +38,44 @@ const CODE_CHARS := "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 const CODE_LEN := 6
 
 
+# ===== ATURAN GAMEPLAY (satu rumah) =====
+# Refactor 2026-10-14: angka-angka ini sebelumnya duplikat di game.gd / player.gd /
+# server_player.gd / mp_server.gd / projectile.gd / trap.gd -> drift antar mode
+# (mis. respawn tak jalan di MP). Kini satu sumber: NetProto.
+# JANGAN ubah nilainya tanpa keputusan desain (catat di DECISIONS.md).
+const BASE_SPEED := 220.0
+const BASE_MAX_HP := 100
+const BASE_MAX_EP := 100
+const BASE_EP_REGEN := 5.0
+# Efek kata (stat).
+const WORD_HP_MAX_BONUS := 50
+const WORD_HP_HEAL := 50
+const WORD_EP_MAX_BONUS := 25
+const WORD_EP_REGEN_BONUS := 2.0
+const WORD_SP_BONUS := 0.15
+# Biaya EP senjata.
+const SWORD_EP_COST := 8
+const PISTOL_EP_COST := 10
+const TRAP_EP_COST := 15
+# Damage & jangkauan.
+const SWORD_DAMAGE := 25
+const PISTOL_DAMAGE := 50
+const TRAP_DAMAGE := 30
+const MELEE_RANGE := 100.0
+# Dorong (action button).
+const PUSH_RANGE := 110.0
+const PUSH_FORCE := 500.0
+# Trap.
+const TRAP_MAX := 3
+const TRAP_ARM_TIME := 3.0
+const TRAP_SLOW_DURATION := 2.0
+# Huruf buyar: hadiah puzzle & drop kematian (radius dari titik asal).
+const SCATTER_REWARD_MIN := 90.0
+const SCATTER_REWARD_MAX := 150.0
+const SCATTER_DEATH_MIN := 60.0
+const SCATTER_DEATH_MAX := 150.0
+
+
 static func make_room_code() -> String:
 	var code := ""
 	for i in CODE_LEN:

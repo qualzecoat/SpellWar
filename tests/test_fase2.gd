@@ -247,9 +247,8 @@ func _init() -> void:
 	_check(p8.hp == p8.max_hp - 50, "tanpa proteksi: damage masuk")
 	p8.queue_free()
 
-	# --- FIX 2026-10-13: respawn 5 dtk ---
-	var game_script: GDScript = load("res://scripts/game.gd")
-	_check(absf(float(game_script.RESPAWN_TIME) - 5.0) < 0.001,
+	# --- FIX 2026-10-13: respawn 5 dtk (refactor 2026-10-14: pindah ke NetProto) ---
+	_check(absf(float(NetProto.RESPAWN_TIME) - 5.0) < 0.001,
 		"RESPAWN_TIME = 5 dtk")
 
 	# --- FIX 2026-10-13: SpellPickup.drop (dipakai scatter hadiah puzzle) ---

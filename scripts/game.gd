@@ -1,55 +1,30 @@
-extends Node2D
-## Koordinator Fase 2: model inventory, deteksi kata, efek 6 kata,
-## combat (pistol/sword/trap), EP, kematian/drop/respawn,
-## drawer + geser kamera, action button, debug tools.
+extends ClientGameBase
+## Mode solo (Main Sendiri): simulasi lokal penuh + training dummy + panel debug.
+## Seluruh alur umum (input, inventory/drawer, minigame, mesin tukar, interaksi,
+## kamera) diwarisi dari ClientGameBase. File ini HANYA berisi yang spesifik solo.
 
-const RESPAWN_TIME := 5.0  # FIX 2026-10-13: 30 -> 5 dtk (hukuman mati = huruf jatuh)
-const PUSH_RANGE := 110.0
-const PUSH_FORCE := 500.0
-
-var inventory: SpellInventory
-var active_matches: Array = []       # Array of {word, dir, cells} — untuk highlight
 var _word_counts: Dictionary = {}    # word -> jumlah kemunculan aktif (stat boleh stack)
-var ui_open := false
-# FIX 2026-10-13 (Fix 2): state stabilitas kata senjata antar-scan.
-var _weapon_active_key: Dictionary = {}  # word -> key match senjata yang aktif
-var _weapon_prev_keys: Dictionary = {}   # word -> Array key SEMUA match scan lalu
-
-var _interact_available := false   # zona puzzle
-var _exchange_available := false   # zona mesin tukar
-var _exchange_open := false
-var _dead := false
 var _respawn_left := 0.0
-var _puzzle_cd := 0.0  # cooldown minigame per pemain (desain: 30 dtk)
 
 # Sengaja untyped: akses member/sinyal custom tidak dikenal static typing base class.
 @onready var player = $Player
-@onready var camera = $Player/Camera2D
-@onready var hud = $HUD
-@onready var inv_ui = $HUD/InventoryPanel
-@onready var minigame = $HUD/MinigamePanel
-@onready var exchange_ui = $HUD/ExchangePanel
 @onready var debug_panel = $HUD/DebugPanel
-@onready var map = $Map
 
 
 func _ready() -> void:
-	inventory = SpellInventory.new()
+	hud = $HUD
+	inv_ui = $HUD/InventoryPanel
+	minigame = $HUD/MinigamePanel
+	exchange_ui = $HUD/ExchangePanel
+	map = $Map
+	camera = $Player/Camera2D
+	super._ready()
+	# --- khusus solo ---
 	player.joystick = hud.joystick
 	player.hp_changed.connect(_on_hp_changed)
 	player.ep_changed.connect(_on_ep_changed)
 	player.died.connect(_on_player_died)
-	hud.inventory_pressed.connect(open_inventory)
-	hud.weapon_pressed.connect(_on_weapon_pressed)
-	hud.interact_pressed.connect(_on_interact_pressed)
 	hud.debug_toggled.connect(_on_debug_toggled)
-	inv_ui.game = self
-	inv_ui.exchange = exchange_ui
-	inv_ui.closed.connect(close_inventory)
-	exchange_ui.game = self
-	exchange_ui.confirmed.connect(_on_exchange_confirmed)
-	exchange_ui.cancelled.connect(close_exchange)
-	minigame.finished.connect(_on_minigame_finished)
 	map.puzzle_zone_changed.connect(_on_puzzle_zone)
 	map.exchange_zone_changed.connect(_on_exchange_zone)
 	debug_panel.hurt_self_pressed.connect(_on_debug_hurt)
@@ -58,14 +33,10 @@ func _ready() -> void:
 	_on_hp_changed(player.hp, player.max_hp)
 	_on_ep_changed(player.ep, player.max_ep)
 	_spawn_test_dummies()
-	inv_ui.refresh(inventory, active_matches)
-	hud.set_sp_indicator(0)
-	_refresh_interact()
 
 
 func _process(delta: float) -> void:
-	if _puzzle_cd > 0.0:
-		_puzzle_cd = maxf(_puzzle_cd - delta, 0.0)
+	_tick_puzzle_cd(delta)
 	if _dead:
 		_respawn_left -= delta
 		hud.show_respawn(maxi(int(ceil(_respawn_left)), 0))
@@ -73,44 +44,79 @@ func _process(delta: float) -> void:
 			_respawn_player()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("interact"):
-		if not ui_open:
-			_on_interact_pressed()
-	elif event.is_action_pressed("ui_cancel"):
-		if inv_ui.is_open():
-			close_inventory()
+# ---------- override hook base ----------
+
+func _set_local_input(enabled: bool) -> void:
+	player.input_enabled = enabled
 
 
-# ---------- inventory & kata ----------
+func _on_minigame_success() -> void:
+	_scatter_puzzle_reward()
+
+
+func _sync_after_exchange() -> void:
+	rescan_words()
+
+
+func _refresh_weapons() -> void:
+	for w in _word_counts.keys():
+		if str(WordDB.WORDS[w]["kind"]) == "weapon":
+			hud.show_weapon(w)
+	_refresh_trap_count()
+
+
+func _do_interact() -> void:
+	if _interact_available:
+		open_minigame()
+	elif _exchange_available:
+		open_exchange()
+	else:
+		_do_push()
+
+
+func _do_weapon(weapon: String) -> void:
+	if not player.alive:
+		return
+	match weapon:
+		"SWORD":
+			if not player.spend_ep(NetProto.SWORD_EP_COST):
+				_ep_denied()
+				return
+			player.clear_protection()  # menyerang = proteksi hilang
+			player.swing_sword()
+			_melee_damage(NetProto.SWORD_DAMAGE)
+		"PISTOL":
+			if not player.spend_ep(NetProto.PISTOL_EP_COST):
+				_ep_denied()
+				return
+			player.clear_protection()
+			SpellProjectile.spawn(self, player.position, player.facing, player)
+		"TRAP":
+			# Tanpa mode pasang — tap langsung pasang trap di posisi kaki pemain.
+			_place_trap_now()
+
+
+func _on_exchange_confirmed(data: Dictionary) -> void:
+	inv_ui.cancel_drag()
+	var pay: Array = data["payment_origins"]
+	SpellExchange.apply(inventory, int(data["source_origin"]), str(data["target"]), pay)
+	exchange_ui.clear_slots()
+	rescan_words()
+	hud.show_toast("Tukar: %s jadi %s!" % [str(data["source_letter"]), str(data["target"])])
+
+
+# ---------- inventory & kata (simulasi lokal) ----------
 
 func on_inventory_changed() -> void:
 	inv_ui.refresh(inventory, active_matches)
 	rescan_words()
 
 
-## FIX 2026-10-12 (Fix 4): kata yang sama BOLEH muncul berkali-kali
-## (stat stacking). Efek diterapkan/dicabut per DELTA jumlah kemunculan.
-## FIX 2026-10-12: senjata tetap tidak stack — hanya match PERTAMA tiap
-## kata weapon yang aktif (di-highlight + efek); duplikat diabaikan.
-## FIX 2026-10-13 (Fix 2): seleksi senjata STABIL — match yang sedang aktif
-## dipertahankan selama masih ada di scan (tidak pindah ke duplikat baru);
-## duplikat yang baru tersusun -> toast "sudah aktif", tidak merebut status.
+## Kata yang sama BOLEH muncul berkali-kali (stat stacking).
+## Efek diterapkan/dicabut per DELTA jumlah kemunculan. Senjata tetap tidak stack —
+## hanya match PERTAMA tiap kata weapon yang aktif (stabil antar-scan).
 func rescan_words() -> void:
-	var res: Dictionary = WordDB.select_stable_weapons(
-		inventory.scan_words(), _weapon_active_key)
-	var matches: Array = res["selected"]
-	var all_keys: Dictionary = res["all_keys"]
-	for w in res["dup_words"]:
-		var prev: Array = _weapon_prev_keys.get(w, [])
-		var cur: Array = all_keys[w]
-		var active_k := str(res["active_keys"][w])
-		for k in cur:
-			if str(k) != active_k and not prev.has(k):
-				hud.show_toast("%s sudah aktif! Senjata tidak bisa di-stack." % w)
-				break
-	_weapon_active_key = res["active_keys"]
-	_weapon_prev_keys = all_keys
+	var matches: Array = _select_words()
 	var counts: Dictionary = {}
 	for m in matches:
 		var w := str(m["word"])
@@ -145,15 +151,15 @@ func _apply_word_effect(word: String) -> void:
 			hud.show_weapon("TRAP")
 			_refresh_trap_count()
 		"HP":
-			player.set_max_hp(player.max_hp + 50)
-			player.heal(50)
+			player.set_max_hp(player.max_hp + NetProto.WORD_HP_MAX_BONUS)
+			player.heal(NetProto.WORD_HP_HEAL)
 		"EP":
-			player.set_max_ep(player.max_ep + 25)
-			player.add_ep_regen(2.0)
+			player.set_max_ep(player.max_ep + NetProto.WORD_EP_MAX_BONUS)
+			player.add_ep_regen(NetProto.WORD_EP_REGEN_BONUS)
 		"SP":
-			# FIX 2026-10-13 (Fix 4): ADITIF — 1x=15%, 2x=30%, 3x=45%
+			# ADITIF — 1x=15%, 2x=30%, 3x=45%
 			# (konsisten dengan HP +50/stack & EP +2 regen/stack).
-			player.speed_mult += 0.15
+			player.speed_mult += NetProto.WORD_SP_BONUS
 	hud.show_toast("Kata " + word + " aktif!")
 
 
@@ -168,12 +174,12 @@ func _remove_word_effect(word: String) -> void:
 			hud.hide_weapon("TRAP")
 			_refresh_trap_count()
 		"HP":
-			player.set_max_hp(player.max_hp - 50)
+			player.set_max_hp(player.max_hp - NetProto.WORD_HP_MAX_BONUS)
 		"EP":
-			player.set_max_ep(player.max_ep - 25)
-			player.add_ep_regen(-2.0)
+			player.set_max_ep(player.max_ep - NetProto.WORD_EP_MAX_BONUS)
+			player.add_ep_regen(-NetProto.WORD_EP_REGEN_BONUS)
 		"SP":
-			player.speed_mult -= 0.15
+			player.speed_mult -= NetProto.WORD_SP_BONUS
 	hud.show_toast("Kata " + word + " pecah!")
 
 
@@ -194,29 +200,6 @@ func _on_ep_changed(ep: int, max_ep: int) -> void:
 
 # ---------- senjata ----------
 
-func _on_weapon_pressed(weapon: String) -> void:
-	if ui_open or _dead or not player.alive:
-		return
-	match weapon:
-		"SWORD":
-			if not player.spend_ep(8):
-				_ep_denied()
-				return
-			player.clear_protection()  # FIX 2026-10-13: menyerang = proteksi hilang
-			player.swing_sword()
-			_melee_damage(25)
-		"PISTOL":
-			if not player.spend_ep(10):
-				_ep_denied()
-				return
-			player.clear_protection()  # FIX 2026-10-13: menyerang = proteksi hilang
-			SpellProjectile.spawn(self, player.position, player.facing, player)
-		"TRAP":
-			# FIX 2026-10-12 (Fix 3): tanpa mode pasang — tap langsung
-			# pasang trap di posisi kaki pemain.
-			_place_trap_now()
-
-
 func _ep_denied() -> void:
 	hud.flash_ep()
 	hud.show_toast("EP tidak cukup!")
@@ -231,15 +214,15 @@ func _melee_damage(amount: int) -> void:
 		if "alive" in nd and not bool(nd.get("alive")):
 			continue
 		var to: Vector2 = nd.global_position - player.global_position
-		if to.length() > 100.0:
+		if to.length() > NetProto.MELEE_RANGE:
 			continue
 		if fwd.dot(to.normalized()) < 0.35:
 			continue
 		nd.take_damage(amount)
 
 
-# ---------- trap: pasang langsung (Fix 3, 2026-10-12) ----------
-## Jumlah = MAKSIMAL trap aktif bersamaan (3), bukan amunisi.
+# ---------- trap: pasang langsung ----------
+## Jumlah = MAKSIMAL trap aktif bersamaan, bukan amunisi.
 ## Trap meledak -> slot kembali, bisa pasang lagi.
 
 func _active_trap_count() -> int:
@@ -263,133 +246,30 @@ func _place_trap_now() -> void:
 	if _active_trap_count() >= SpellTrap.MAX_CONCURRENT:
 		hud.show_toast("Trap maksimal!")
 		return
-	if not player.spend_ep(15):
+	if not player.spend_ep(NetProto.TRAP_EP_COST):
 		_ep_denied()
 		return
 	var t := SpellTrap.place(self, player.position, player)
 	t.exploded.connect(_on_trap_exploded)
 	_refresh_trap_count()
-	player.clear_protection()  # FIX 2026-10-13: menyerang = proteksi hilang
+	player.clear_protection()  # menyerang = proteksi hilang
 	hud.show_toast("Trap dipasang!")
 
 
+# ---------- hadiah puzzle buyar ----------
 
-# ---------- panel & drawer ----------
-
-func open_inventory() -> void:
-	if ui_open or _dead:
-		return
-	ui_open = true
-	# Fase 2: saat drawer terbuka pemain TETAP BISA GERAK, tapi tidak bisa action.
-	hud.set_actions_enabled(false)
-	_shift_camera(true)
-	inv_ui.open_panel()
-
-
-func close_inventory() -> void:
-	if _exchange_open:
-		close_exchange()
-		return
-	inv_ui.cancel_drag()
-	inv_ui.close_panel()
-	ui_open = false
-	hud.set_actions_enabled(true)
-	_shift_camera(false)
-	_refresh_weapons()
-	_refresh_interact()
-
-
-func _shift_camera(open: bool) -> void:
-	var target: float = inv_ui.get_drawer_w() * 0.5 if open else 0.0
-	var tw := create_tween()
-	tw.tween_property(camera, "offset:x", target, 0.25).set_trans(Tween.TRANS_CUBIC)
-
-
-func _refresh_weapons() -> void:
-	for w in _word_counts.keys():
-		if str(WordDB.WORDS[w]["kind"]) == "weapon":
-			hud.show_weapon(w)
-	_refresh_trap_count()
-
-
-func open_minigame() -> void:
-	if ui_open:
-		return
-	# Cooldown 30 dtk per pemain (desain) — cegah farming satu konsol.
-	if _puzzle_cd > 0.0:
-		hud.show_toast("Puzzle cooldown: %ds" % maxi(int(ceil(_puzzle_cd)), 1))
-		return
-	ui_open = true
-	player.input_enabled = false
-	hud.set_interact_visible(false)
-	hud.set_machine_panel_open(true)  # FIX 2026-10-13: panel di daerah joystick
-	minigame.start_puzzle()
-
-
-func _on_minigame_finished(success: bool) -> void:
-	ui_open = false
-	player.input_enabled = true
-	hud.set_machine_panel_open(false)  # FIX 2026-10-13
-	if success:
-		_puzzle_cd = 30.0
-		_scatter_puzzle_reward()
-	_refresh_interact()
-
-
-# FIX 2026-10-13: hadiah puzzle TIDAK langsung masuk inventory — 5 huruf
-# TERSEBAR di tanah sekitar konsol sebagai pickup (pakai sistem pickup yang
-# sama dengan death drop). Pemain harus berjalan memungutnya; huruf buyar
-# terlihat semua pemain dan BISA DICURI lawan (disengaja -> momen kontes).
+# Hadiah puzzle TIDAK langsung masuk inventory — 5 huruf TERSEBAR di tanah
+# sekitar konsol sebagai pickup. Pemain harus berjalan memungutnya.
 func _scatter_puzzle_reward() -> void:
 	var center: Vector2 = map.PUZZLE_POS
 	for i in 5:
 		var letter := String.chr(randi_range(65, 90))
 		var ang := randf() * TAU
-		# Radius 90-150: di luar badan konsol, di dalam ruang puzzle
-		# (walkable, tidak menembus dinding).
-		var dist := randf_range(90.0, 150.0)
+		# Radius di luar badan konsol, di dalam ruang puzzle (walkable).
+		var dist := randf_range(
+			NetProto.SCATTER_REWARD_MIN, NetProto.SCATTER_REWARD_MAX)
 		SpellPickup.drop(self, center + Vector2(cos(ang), sin(ang)) * dist, letter)
 	hud.show_toast("Puzzle selesai! Pungut 5 huruf yang buyar!")
-
-
-# ---------- mesin tukar huruf (Fase 1b) ----------
-
-func open_exchange() -> void:
-	if ui_open:
-		return
-	ui_open = true
-	_exchange_open = true
-	player.input_enabled = false
-	hud.set_interact_visible(false)
-	hud.set_machine_panel_open(true)  # FIX 2026-10-13: panel di daerah joystick
-	_shift_camera(true)
-	inv_ui.open_panel()
-	exchange_ui.open_panel()
-
-
-func close_exchange() -> void:
-	if not _exchange_open:
-		return
-	inv_ui.cancel_drag()
-	exchange_ui.return_all_to_inventory()
-	exchange_ui.close_panel()
-	inv_ui.close_panel()
-	_exchange_open = false
-	ui_open = false
-	player.input_enabled = true
-	hud.set_machine_panel_open(false)  # FIX 2026-10-13
-	_shift_camera(false)
-	rescan_words()
-	_refresh_interact()
-
-
-func _on_exchange_confirmed(data: Dictionary) -> void:
-	inv_ui.cancel_drag()
-	var pay: Array = data["payment_origins"]
-	SpellExchange.apply(inventory, int(data["source_origin"]), str(data["target"]), pay)
-	exchange_ui.clear_slots()
-	rescan_words()
-	hud.show_toast("Tukar: %s jadi %s!" % [str(data["source_letter"]), str(data["target"])])
 
 
 # ---------- kematian, drop, respawn ----------
@@ -403,8 +283,8 @@ func _on_player_died() -> void:
 	player.input_enabled = false
 	player.visible = false
 	_drop_all_letters()
-	_respawn_left = RESPAWN_TIME
-	hud.show_respawn(int(RESPAWN_TIME))
+	_respawn_left = NetProto.RESPAWN_TIME
+	hud.show_respawn(int(NetProto.RESPAWN_TIME))
 	hud.show_toast("Kamu mati! Huruf jatuh semua.")
 
 
@@ -415,7 +295,8 @@ func _drop_all_letters() -> void:
 		if v == null:
 			continue
 		var ang := randf() * TAU
-		var dist := randf_range(60.0, 150.0)
+		var dist := randf_range(
+			NetProto.SCATTER_DEATH_MIN, NetProto.SCATTER_DEATH_MAX)
 		SpellPickup.drop(self, origin + Vector2(cos(ang), sin(ang)) * dist, str(v))
 		inventory.grid[i] = null
 	on_inventory_changed()
@@ -437,23 +318,7 @@ func collect_pickup(letter: String) -> void:
 	hud.show_toast("Pungut: " + letter)
 
 
-# ---------- interaksi & dorong ----------
-
-func _refresh_interact() -> void:
-	if ui_open or _dead:
-		hud.set_interact_visible(false)
-		return
-	hud.set_interact_visible(true)
-	if _interact_available:
-		hud.set_interact_text("PUZZLE (E)")
-		hud.set_interact_highlighted(true)
-	elif _exchange_available:
-		hud.set_interact_text("TUKAR (E)")
-		hud.set_interact_highlighted(true)
-	else:
-		hud.set_interact_text("DORONG")
-		hud.set_interact_highlighted(false)
-
+# ---------- zona interaksi ----------
 
 func _on_puzzle_zone(inside: bool) -> void:
 	_interact_available = inside
@@ -465,21 +330,12 @@ func _on_exchange_zone(inside: bool) -> void:
 	_refresh_interact()
 
 
-func _on_interact_pressed() -> void:
-	if ui_open or _dead:
-		return
-	if _interact_available:
-		open_minigame()
-	elif _exchange_available:
-		open_exchange()
-	else:
-		_do_push()
-
+# ---------- dorong ----------
 
 func _do_push() -> void:
 	var fwd: Vector2 = player.facing
 	var best: Node2D = null
-	var best_d := PUSH_RANGE
+	var best_d := NetProto.PUSH_RANGE
 	for n in get_tree().get_nodes_in_group("damageable"):
 		var nd := n as Node2D
 		if nd == null or nd == player:
@@ -488,7 +344,7 @@ func _do_push() -> void:
 			continue
 		var to: Vector2 = nd.global_position - player.global_position
 		var d := to.length()
-		if d > PUSH_RANGE or d < 1.0:
+		if d > NetProto.PUSH_RANGE or d < 1.0:
 			continue
 		if fwd.dot(to.normalized()) < 0.3:
 			continue
@@ -496,8 +352,8 @@ func _do_push() -> void:
 			best_d = d
 			best = nd
 	if best != null and best.has_method("apply_knockback"):
-		player.clear_protection()  # FIX 2026-10-13: menyerang = proteksi hilang
-		best.apply_knockback(fwd, PUSH_FORCE)
+		player.clear_protection()  # menyerang = proteksi hilang
+		best.apply_knockback(fwd, NetProto.PUSH_FORCE)
 		hud.show_toast("Dorong!")
 	else:
 		hud.show_toast("Tidak ada yang didorong.")

@@ -334,16 +334,16 @@ func _on_weapon(room: Room, p: ServerPlayer, w: String) -> void:
 		"SWORD":
 			if not ("SWORD" in p.words):
 				return
-			if not p.spend_ep(8):
+			if not p.spend_ep(NetProto.SWORD_EP_COST):
 				_send(p.peer, "toast", {"msg": "EP tidak cukup!"})
 				return
 			p.clear_protection()
-			_melee(room, p, 25, 100.0)
+			_melee(room, p, NetProto.SWORD_DAMAGE, NetProto.MELEE_RANGE)
 			room.events.append({"k": "sword", "id": p.pid})
 		"PISTOL":
 			if not ("PISTOL" in p.words):
 				return
-			if not p.spend_ep(10):
+			if not p.spend_ep(NetProto.PISTOL_EP_COST):
 				_send(p.peer, "toast", {"msg": "EP tidak cukup!"})
 				return
 			p.clear_protection()
@@ -358,15 +358,15 @@ func _on_weapon(room: Room, p: ServerPlayer, w: String) -> void:
 			for t in room.traps:
 				if int(t["owner"]) == p.pid:
 					owned += 1
-			if owned >= 3:
+			if owned >= NetProto.TRAP_MAX:
 				_send(p.peer, "toast", {"msg": "Trap maksimal!"})
 				return
-			if not p.spend_ep(15):
+			if not p.spend_ep(NetProto.TRAP_EP_COST):
 				_send(p.peer, "toast", {"msg": "EP tidak cukup!"})
 				return
 			p.clear_protection()
 			room.traps.append({"id": room.next_ent, "owner": p.pid,
-				"pos": p.position, "arm_left": 3.0})
+				"pos": p.position, "arm_left": NetProto.TRAP_ARM_TIME})
 			room.next_ent += 1
 			_send(p.peer, "toast", {"msg": "Trap dipasang!"})
 
@@ -388,14 +388,14 @@ func _on_push(room: Room, p: ServerPlayer) -> void:
 	if not room.started or not p.alive or p.disconnected:
 		return
 	var best: ServerPlayer = null
-	var best_d := 110.0
+	var best_d := NetProto.PUSH_RANGE
 	for pid in room.players.keys():
 		var q: ServerPlayer = room.players[pid]
 		if q == p or not q.alive or q.disconnected:
 			continue
 		var to: Vector2 = q.position - p.position
 		var d := to.length()
-		if d > 110.0 or d < 1.0:
+		if d > NetProto.PUSH_RANGE or d < 1.0:
 			continue
 		if p.facing.dot(to.normalized()) < 0.3:
 			continue
@@ -404,7 +404,7 @@ func _on_push(room: Room, p: ServerPlayer) -> void:
 			best = q
 	if best != null:
 		p.clear_protection()
-		best.apply_knockback(p.facing, 500.0)
+		best.apply_knockback(p.facing, NetProto.PUSH_FORCE)
 		_send(p.peer, "toast", {"msg": "Dorong!"})
 
 
@@ -421,7 +421,7 @@ func _on_puzzle_done(room: Room, p: ServerPlayer) -> void:
 	for i in 5:
 		var letter := String.chr(randi_range(65, 90))
 		var ang := randf() * TAU
-		var dist := randf_range(90.0, 150.0)
+		var dist := randf_range(NetProto.SCATTER_REWARD_MIN, NetProto.SCATTER_REWARD_MAX)
 		_spawn_pickup(room, p.position + Vector2(cos(ang), sin(ang)) * dist, letter)
 	_send(p.peer, "toast", {"msg": "Puzzle selesai! Pungut 5 huruf yang buyar!"})
 
@@ -506,7 +506,7 @@ func _sim_room(room: Room, delta: float) -> void:
 			if pid == int(j["shooter"]) or not pl.alive or pl.disconnected:
 				continue
 			if pl.position.distance_to(to) < 24.0:
-				_damage(room, pl, 50, int(j["shooter"]))
+				_damage(room, pl, NetProto.PISTOL_DAMAGE, int(j["shooter"]))
 				hit = true
 				break
 		if hit or float(j["traveled"]) > 900.0:
@@ -523,8 +523,8 @@ func _sim_room(room: Room, delta: float) -> void:
 			if pid == int(t["owner"]) or not pl.alive or pl.disconnected:
 				continue
 			if pl.position.distance_to(t["pos"] as Vector2) < 34.0:
-				_damage(room, pl, 30, int(t["owner"]))
-				pl.apply_slow(2.0)
+				_damage(room, pl, NetProto.TRAP_DAMAGE, int(t["owner"]))
+				pl.apply_slow(NetProto.TRAP_SLOW_DURATION)
 				room.events.append({"k": "trap", "id": pid})
 				boom = true
 				break
@@ -566,7 +566,7 @@ func _drop_letters(room: Room, p: ServerPlayer) -> void:
 		if v == null:
 			continue
 		var ang := randf() * TAU
-		var dist := randf_range(60.0, 150.0)
+		var dist := randf_range(NetProto.SCATTER_DEATH_MIN, NetProto.SCATTER_DEATH_MAX)
 		_spawn_pickup(room, p.position + Vector2(cos(ang), sin(ang)) * dist, str(v))
 		p.inv.grid[i] = null
 	p.recompute_words()

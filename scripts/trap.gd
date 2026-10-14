@@ -8,13 +8,13 @@ extends Area2D
 ## dalam radius kecil" berlaku per-viewer dan diimplementasikan saat
 ## multiplayer/Fase 3 — tiap client me-render pandangannya sendiri.)
 
-const TRIGGER_DAMAGE := 30
-const SLOW_DURATION := 2.0
-const MAX_CONCURRENT := 3
+const TRIGGER_DAMAGE := NetProto.TRAP_DAMAGE
+const SLOW_DURATION := NetProto.TRAP_SLOW_DURATION
+const MAX_CONCURRENT := NetProto.TRAP_MAX
 ## FIX 2026-10-13 (Fix 5): trap butuh 3 detik "arming" setelah dipasang —
 ## selama arming TIDAK bisa terpicu siapa pun (mencegah disalahgunakan
 ## sebagai serangan jarak dekat: pasang di kaki musuh -> langsung meledak).
-const ARM_TIME := 3.0
+const ARM_TIME := NetProto.TRAP_ARM_TIME
 
 signal exploded(trap: SpellTrap)
 

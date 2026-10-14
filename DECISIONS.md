@@ -88,3 +88,28 @@
 - Fase 3b DIBUKA: map baru sesuai desain user (file 200 MB → kirim versi kompres:
   overview + crop per area + label teks; atau via Google Drive folder `SpellWar`).
 - PROJECT.md + DECISIONS.md dibuat di repo; WAJIB selalu diupdate (instruksi user).
+
+## 2026-10-14 — Refactor fondasi: ClientGameBase (sebelum Fase 3b)
+
+- Latar: bug-bug MP (respawn tak jalan, wiring tukar huruf hilang, tombol E mati,
+  gerak mati saat inventory terbuka) semuanya berasal dari `game.gd` & `mp_game.gd`
+  sebagai dua orkestrator paralel yang harus di-porting manual. User (non-coder)
+  dengan tepat menduga akar masalahnya: fitur tidak dikukuhkan di satu tempat.
+- Solusi: `scripts/client_game_base.gd` (`class_name ClientGameBase`, extends Node2D) —
+  seluruh alur client yang identik pindah ke sini: `_unhandled_input` (E/Esc),
+  open/close inventory + geser kamera, open/close minigame + cooldown,
+  open/close exchange, `_refresh_interact`, seleksi kata stabil. Subclass hanya berisi
+  yang spesifik mode via hook: `_set_local_input`, `_on_minigame_success`,
+  `_sync_after_exchange`, `_do_interact`, `_do_weapon`, `_refresh_weapons`,
+  `_on_exchange_confirmed`.
+- `game.gd` kini hanya: simulasi lokal, efek kata, combat lokal, dummy, panel debug.
+- `mp_game.gd` kini hanya: netcode, snapshot, visual remote/pickup/trap/proyektil,
+  darkness, proximity.
+- Sentralisasi aturan ke `net_proto.gd` (satu rumah, nilai TIDAK diubah): BASE_*,
+  efek kata (HP/EP/SP), biaya EP senjata, damage, MELEE_RANGE, PUSH_*,
+  TRAP_* (max/arm/slow), SCATTER_* (reward/death). `player.gd`, `server_player.gd`,
+  `projectile.gd`, `trap.gd`, `mp_server.gd`, `game.gd` kini merujuk ke sana.
+- Spawn & posisi mesin: SUDAH tersentralisasi sebelum refactor (`map.gd` untuk solo,
+  `NetProto.SPAWN_SLOTS` untuk MP) — tidak diubah.
+- Batasan: perilaku harus identik (Fase 2 & 3 dikunci) — refactor murni, tanpa fitur baru.
+- Server di-rebuild + restart (script server/shared berubah).

@@ -29,11 +29,15 @@ untuk menghambat progres lawan, bukan untuk saling bunuh sebagai tujuan utama.
 - **Protokol:** WebSocket (`wss`), bukan ENet.
 - Scene: `scenes/main.tscn` (solo), `scenes/mp_main.tscn` (multiplayer),
   `scenes/menu.tscn`, `scenes/server_main.tscn` (dedicated server).
-- Script penting: `scripts/game.gd` (solo), `scripts/mp_game.gd` (client MP),
+- Script penting: `scripts/client_game_base.gd` (**lapisan alur game bersama** —
+  `game.gd` & `mp_game.gd` mewarisinya; seluruh flow client yang identik tinggal di sini),
+  `scripts/game.gd` (solo: simulasi lokal + dummy + debug),
+  `scripts/mp_game.gd` (client MP: netcode + visual),
   `scripts/mp_server.gd` + `scripts/server_player.gd` (server),
-  `scripts/net_proto.gd` (konstanta & pesan), `scripts/inventory_ui.gd`,
-  `scripts/exchange*.gd`, `scripts/words.gd`, `scripts/darkness_overlay.gd` +
-  `shaders/darkness.gdshader` (vision), `scripts/touch_keyboard.gd` (keyboard HP).
+  `scripts/net_proto.gd` (konstanta, pesan, **dan aturan gameplay satu rumah**),
+  `scripts/inventory_ui.gd`, `scripts/exchange*.gd`, `scripts/words.gd`,
+  `scripts/darkness_overlay.gd` + `shaders/darkness.gdshader` (vision),
+  `scripts/touch_keyboard.gd` (keyboard HP).
 
 ## 3. Status fase
 

@@ -3,10 +3,10 @@ extends CharacterBody2D
 ## damage/kematian, efek slow, speed multiplier (kata SP),
 ## knockback (dorong), ayunan pedang.
 
-const BASE_SPEED := 220.0
-const BASE_MAX_HP := 100
-const BASE_MAX_EP := 100
-const BASE_EP_REGEN := 5.0
+const BASE_SPEED := NetProto.BASE_SPEED
+const BASE_MAX_HP := NetProto.BASE_MAX_HP
+const BASE_MAX_EP := NetProto.BASE_MAX_EP
+const BASE_EP_REGEN := NetProto.BASE_EP_REGEN
 
 var hp := BASE_MAX_HP
 var max_hp := BASE_MAX_HP
@@ -29,7 +29,7 @@ var _trail_timer := 0.0
 var _trail: Array = []
 const TRAIL_MAX_AGE := 0.35
 # FIX 2026-10-13: spawn protection 3 dtk setelah respawn (kebal damage).
-const SPAWN_PROTECT_TIME := 3.0
+const SPAWN_PROTECT_TIME := NetProto.PROTECT_TIME
 var _protect_time := 0.0
 var _spr: Sprite2D = null  # cache $Sprite2D (null-safe untuk test headless)
 

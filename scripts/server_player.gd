@@ -4,10 +4,10 @@ extends CharacterBody2D
 ## Server menjalankan move_and_slide + EP/HP/efek kata; client hanya
 ## mengirim input dan me-render snapshot.
 
-const BASE_SPEED := 220.0
-const BASE_MAX_HP := 100
-const BASE_MAX_EP := 100
-const BASE_EP_REGEN := 5.0
+const BASE_SPEED := NetProto.BASE_SPEED
+const BASE_MAX_HP := NetProto.BASE_MAX_HP
+const BASE_MAX_EP := NetProto.BASE_MAX_EP
+const BASE_EP_REGEN := NetProto.BASE_EP_REGEN
 
 var pid := 0
 var player_name := ""
@@ -176,27 +176,27 @@ func recompute_words() -> Array:
 func _apply_word_effect(word: String) -> void:
 	match word:
 		"HP":
-			max_hp += 50
-			hp = mini(hp + 50, max_hp)
+			max_hp += NetProto.WORD_HP_MAX_BONUS
+			hp = mini(hp + NetProto.WORD_HP_HEAL, max_hp)
 		"EP":
-			max_ep += 25
-			ep_regen += 2.0
+			max_ep += NetProto.WORD_EP_MAX_BONUS
+			ep_regen += NetProto.WORD_EP_REGEN_BONUS
 		"SP":
-			speed_mult += 0.15
+			speed_mult += NetProto.WORD_SP_BONUS
 		# Senjata (SWORD/PISTOL/TRAP): hanya tercatat di `words` untuk validasi.
 
 
 func _remove_word_effect(word: String) -> void:
 	match word:
 		"HP":
-			max_hp = maxi(max_hp - 50, 1)
+			max_hp = maxi(max_hp - NetProto.WORD_HP_MAX_BONUS, 1)
 			hp = mini(hp, max_hp)
 		"EP":
-			max_ep = maxi(max_ep - 25, 1)
+			max_ep = maxi(max_ep - NetProto.WORD_EP_MAX_BONUS, 1)
 			ep = mini(ep, max_ep)
-			ep_regen = maxf(ep_regen - 2.0, 0.0)
+			ep_regen = maxf(ep_regen - NetProto.WORD_EP_REGEN_BONUS, 0.0)
 		"SP":
-			speed_mult = maxf(speed_mult - 0.15, 0.1)
+			speed_mult = maxf(speed_mult - NetProto.WORD_SP_BONUS, 0.1)
 
 
 ## Validasi grid dari client: harus permutasi dari grid server

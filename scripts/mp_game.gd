@@ -1,63 +1,43 @@
-extends Node2D
+extends ClientGameBase
 ## Koordinator multiplayer client Fase 3.
 ## - Gerak/aksi dikirim sebagai input ke server; semua state gameplay
 ##   (posisi, HP/EP, kata/efek, senjata) datang dari snapshot server.
 ## - Inventory UI dipakai ulang: drag-drop lokal untuk kenyamanan,
 ##   grid dikirim ke server; server otoritatif (validasi permutasi huruf).
 ## - Panel debug MATI di mode ini (anti cheat).
+## Seluruh alur umum (input, inventory/drawer, minigame, mesin tukar, interaksi,
+## kamera) diwarisi dari ClientGameBase. File ini HANYA berisi netcode & visual.
 
-@onready var map = $Map
-@onready var hud = $HUD
-@onready var inv_ui = $HUD/InventoryPanel
-@onready var minigame = $HUD/MinigamePanel
-@onready var exchange_ui = $HUD/ExchangePanel
 @onready var local_visual: RemotePlayerVisual = $LocalVisual
-@onready var camera = $LocalVisual/Camera2D
 @onready var remotes_node = $Remotes
 @onready var pickups_node = $Pickups
 @onready var traps_node = $Traps
 @onready var projs_node = $Projectiles
 
-var inventory: SpellInventory
-var active_matches: Array = []
-var _weapon_active_key: Dictionary = {}
-var _weapon_prev_keys: Dictionary = {}
-
-var ui_open := false
-var _exchange_open := false
-var _dead := false
 var _my_id := 0
 var _my_pos := Vector2.ZERO
-var _interact_available := false
-var _exchange_available := false
 
 var _remotes: Dictionary = {}   # pid -> RemotePlayerVisual
 var _pickups: Dictionary = {}   # id -> Node2D
 var _traps: Dictionary = {}     # id -> Node2D
 var _projs: Dictionary = {}     # id -> Node2D
 var _darkness: DarknessOverlay = null
-var _puzzle_cd := 0.0  # cooldown minigame (mirror server, cegah main sia-sia)
 
 
 func _ready() -> void:
-	inventory = SpellInventory.new()
+	hud = $HUD
+	inv_ui = $HUD/InventoryPanel
+	minigame = $HUD/MinigamePanel
+	exchange_ui = $HUD/ExchangePanel
+	map = $Map
+	camera = $LocalVisual/Camera2D
+	super._ready()
+	# --- khusus MP ---
 	# Panel debug MATI saat multiplayer.
 	hud.get_node("DebugButton").visible = false
 	hud.get_node("DebugPanel").visible = false
 
 	local_visual.setup(Net.nickname, Net.player_id, true)
-
-	hud.inventory_pressed.connect(open_inventory)
-	hud.weapon_pressed.connect(_on_weapon_pressed)
-	hud.interact_pressed.connect(_on_interact_pressed)
-	inv_ui.game = self
-	inv_ui.exchange = exchange_ui  # FIX 2026-10-13: tanpa ini drop huruf ke
-	# slot mesin tukar/puzzle gagal diam-diam di MP (exchange == null).
-	inv_ui.closed.connect(close_inventory)
-	exchange_ui.game = self
-	exchange_ui.confirmed.connect(_on_exchange_confirmed)
-	exchange_ui.cancelled.connect(close_exchange)
-	minigame.finished.connect(_on_minigame_finished)
 
 	Net.snapshot.connect(_on_snapshot)
 	Net.grid_sync.connect(_on_grid_sync)
@@ -66,12 +46,9 @@ func _ready() -> void:
 	Net.exchange_result.connect(_on_exchange_result)
 	Net.server_disconnected.connect(_on_server_dc)
 
-	inv_ui.refresh(inventory, active_matches)
-	hud.set_sp_indicator(0)
 	hud.set_hp(100, 100)
 	hud.set_ep(100, 100)
 	_make_darkness()
-	_refresh_interact()
 	if Net.last_error != "":
 		hud.show_toast(Net.last_error)
 		Net.last_error = ""
@@ -79,25 +56,13 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	var mv := _read_input()
-	# FIX 2026-10-13: inventory (drawer) saja terbuka -> gerak TETAP BOLEH
-	# (desain); yang memblokir hanya: mati / mesin tukar / minigame.
+	# Inventory (drawer) saja terbuka -> gerak TETAP BOLEH (desain);
+	# yang memblokir hanya: mati / mesin tukar / minigame.
 	if NetProto.movement_blocked(_dead, _exchange_open, minigame.visible):
 		mv = Vector2.ZERO
 	Net.send_input(mv, delta)
-	if _puzzle_cd > 0.0:
-		_puzzle_cd = maxf(_puzzle_cd - delta, 0.0)
+	_tick_puzzle_cd(delta)
 	_update_proximity()
-
-
-## FIX 2026-10-13: samakan dengan game.gd (solo) — tombol E = interact,
-## Esc = tutup inventory. Sebelumnya MP tidak menangani E sama sekali.
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("interact"):
-		if not ui_open and not _dead:
-			_on_interact_pressed()
-	elif event.is_action_pressed("ui_cancel"):
-		if inv_ui.is_open():
-			close_inventory()
 
 
 func _read_input() -> Vector2:
@@ -109,6 +74,39 @@ func _read_input() -> Vector2:
 		else:
 			dir = (dir + joy).limit_length(1.0)
 	return dir.limit_length(1.0)
+
+
+# ---------- override hook base ----------
+
+func _on_minigame_success() -> void:
+	Net.send_puzzle_done()
+
+
+func _sync_after_exchange() -> void:
+	# Huruf yang kembali ke inventory harus di-sync ke server
+	# (sebelumnya desync: server tetap menganggap huruf di slot sudah hangus).
+	on_inventory_changed()
+
+
+func _do_interact() -> void:
+	if _interact_available:
+		Net.send_interact_puzzle()
+	elif _exchange_available:
+		Net.send_interact_exchange()
+	else:
+		Net.send_push()
+
+
+func _do_weapon(weapon: String) -> void:
+	Net.send_weapon(weapon)
+
+
+func _on_exchange_confirmed(data: Dictionary) -> void:
+	inv_ui.cancel_drag()
+	var pay: Array = data["payment_origins"]
+	# Validasi & aplikasi di server; grid otoritatif datang via grid_sync.
+	Net.send_exchange(int(data["source_origin"]), str(data["target"]),
+		str(data["source_letter"]), pay)
 
 
 # ---------- snapshot ----------
@@ -304,25 +302,11 @@ class ProjVisual extends Node2D:
 
 func on_inventory_changed() -> void:
 	# Highlight lokal instan (visual saja); efek gameplay dari server.
-	var res: Dictionary = WordDB.select_stable_weapons(
-		inventory.scan_words(), _weapon_active_key)
-	var matches: Array = res["selected"]
-	for w in res["dup_words"]:
-		var prev: Array = _weapon_prev_keys.get(w, [])
-		var cur: Array = res["all_keys"][w]
-		var active_k := str(res["active_keys"][w])
-		for k in cur:
-			if str(k) != active_k and not prev.has(k):
-				hud.show_toast("%s sudah aktif! Senjata tidak bisa di-stack." % w)
-				break
-	_weapon_active_key = res["active_keys"]
-	_weapon_prev_keys = res["all_keys"]
-	active_matches = matches
+	_select_words()
 	inv_ui.refresh(inventory, active_matches)
-	# FIX: kirim tampilan grid yang slot-aware — huruf yang reserved di slot
+	# Kirim tampilan grid yang slot-aware — huruf yang reserved di slot
 	# exchange dikembalikan ke originnya, sehingga server selalu melihat
-	# permutasi valid dan tidak pernah me-reject (sebelumnya drop huruf ke
-	# slot selalu di-reject -> grid_sync -> slot langsung terhapus).
+	# permutasi valid dan tidak pernah me-reject.
 	Net.send_grid(SpellInventory.reserved_grid_view(inventory.grid,
 		exchange_ui.get_reserved() if _exchange_open else []))
 
@@ -359,120 +343,11 @@ func _on_grid_sync(cells: Array, note: String, exchanged: bool) -> void:
 
 
 func on_inventory_changed_silent() -> void:
-	var res: Dictionary = WordDB.select_stable_weapons(
-		inventory.scan_words(), _weapon_active_key)
-	_weapon_active_key = res["active_keys"]
-	_weapon_prev_keys = res["all_keys"]
-	active_matches = res["selected"]
+	_select_words()
 	inv_ui.refresh(inventory, active_matches)
 
 
-# ---------- panel & drawer (mirror game.gd) ----------
-
-func open_inventory() -> void:
-	if ui_open or _dead:
-		return
-	ui_open = true
-	hud.set_actions_enabled(false)
-	_shift_camera(true)
-	inv_ui.open_panel()
-
-
-func close_inventory() -> void:
-	if _exchange_open:
-		close_exchange()
-		return
-	inv_ui.cancel_drag()
-	inv_ui.close_panel()
-	ui_open = false
-	hud.set_actions_enabled(true)
-	_shift_camera(false)
-	_refresh_interact()
-
-
-func _shift_camera(open: bool) -> void:
-	var target: float = inv_ui.get_drawer_w() * 0.5 if open else 0.0
-	var tw := create_tween()
-	tw.tween_property(camera, "offset:x", target, 0.25).set_trans(Tween.TRANS_CUBIC)
-
-
-func open_minigame() -> void:
-	if ui_open:
-		return
-	# Cooldown 30 dtk (mirror server) — jangan buang waktu main sia-sia.
-	if _puzzle_cd > 0.0:
-		hud.show_toast("Puzzle cooldown: %ds" % maxi(int(ceil(_puzzle_cd)), 1))
-		return
-	ui_open = true
-	hud.set_interact_visible(false)
-	hud.set_machine_panel_open(true)
-	minigame.start_puzzle()
-
-
-func _on_minigame_finished(success: bool) -> void:
-	ui_open = false
-	hud.set_machine_panel_open(false)
-	if success:
-		_puzzle_cd = NetProto.PUZZLE_COOLDOWN
-		Net.send_puzzle_done()
-	_refresh_interact()
-
-
-func open_exchange() -> void:
-	if ui_open:
-		return
-	ui_open = true
-	_exchange_open = true
-	hud.set_interact_visible(false)
-	hud.set_machine_panel_open(true)
-	_shift_camera(true)
-	inv_ui.open_panel()
-	exchange_ui.open_panel()
-
-
-func close_exchange() -> void:
-	if not _exchange_open:
-		return
-	inv_ui.cancel_drag()
-	exchange_ui.return_all_to_inventory()
-	# FIX 2026-10-13: huruf yang kembali ke inventory harus di-sync ke server
-	# (sebelumnya desync: server tetap menganggap huruf di slot sudah hangus).
-	on_inventory_changed()
-	exchange_ui.close_panel()
-	inv_ui.close_panel()
-	_exchange_open = false
-	ui_open = false
-	hud.set_machine_panel_open(false)
-	_shift_camera(false)
-	_refresh_interact()
-
-
-func _on_exchange_confirmed(data: Dictionary) -> void:
-	inv_ui.cancel_drag()
-	var pay: Array = data["payment_origins"]
-	# Validasi & aplikasi di server; grid otoritatif datang via grid_sync.
-	Net.send_exchange(int(data["source_origin"]), str(data["target"]),
-		str(data["source_letter"]), pay)
-
-
-func _on_exchange_result(ok: bool, msg: String) -> void:
-	hud.show_toast(msg)
-
-
-func _on_panel_ok(kind: String) -> void:
-	if kind == "puzzle":
-		open_minigame()
-	elif kind == "exchange":
-		open_exchange()
-
-
-# ---------- aksi ----------
-
-func _on_weapon_pressed(weapon: String) -> void:
-	if ui_open or _dead:
-		return
-	Net.send_weapon(weapon)
-
+# ---------- proximity mesin ----------
 
 func _update_proximity() -> void:
 	if ui_open or _dead:
@@ -487,33 +362,6 @@ func _update_proximity() -> void:
 		_refresh_interact()
 
 
-func _refresh_interact() -> void:
-	if ui_open or _dead:
-		hud.set_interact_visible(false)
-		return
-	hud.set_interact_visible(true)
-	if _interact_available:
-		hud.set_interact_text("PUZZLE (E)")
-		hud.set_interact_highlighted(true)
-	elif _exchange_available:
-		hud.set_interact_text("TUKAR (E)")
-		hud.set_interact_highlighted(true)
-	else:
-		hud.set_interact_text("DORONG")
-		hud.set_interact_highlighted(false)
-
-
-func _on_interact_pressed() -> void:
-	if ui_open or _dead:
-		return
-	if _interact_available:
-		Net.send_interact_puzzle()
-	elif _exchange_available:
-		Net.send_interact_exchange()
-	else:
-		Net.send_push()
-
-
 func _on_server_dc() -> void:
 	Net.last_error = "Koneksi ke server putus."
 	get_tree().change_scene_to_file("res://scenes/menu.tscn")
@@ -523,9 +371,21 @@ func _on_server_dc() -> void:
 
 func _make_darkness() -> void:
 	# Overlay full-screen via shader (scripts/darkness_overlay.gd +
-	# shaders/darkness.gdshader). Menggantikan Sprite2D radial lama yang
-	# hanya menggelapkan kotak di tengah layar. Overlay melacak posisi
-	# screen pemain sendiri tiap frame (lihat DarknessOverlay._process).
+	# shaders/darkness.gdshader). Overlay melacak posisi screen pemain
+	# sendiri tiap frame (lihat DarknessOverlay._process).
 	_darkness = DarknessOverlay.new()
 	_darkness.setup(local_visual)
 	add_child(_darkness)
+
+
+# ---------- panel hasil ----------
+
+func _on_exchange_result(ok: bool, msg: String) -> void:
+	hud.show_toast(msg)
+
+
+func _on_panel_ok(kind: String) -> void:
+	if kind == "puzzle":
+		open_minigame()
+	elif kind == "exchange":
+		open_exchange()
