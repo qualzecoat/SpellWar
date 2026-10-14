@@ -216,6 +216,15 @@ def main() -> None:
             f.write(f"\tRect2({x}, {y}, {w}, {h}),\n")
         f.write("]\n")
     print("data:", gen_path)
+    # 11b. Embed base64 PNG sebagai const (push-safe & pasti ikut export;
+    # push_files hanya untuk teks, biner PNG tidak bisa di-push).
+    import base64 as _b64
+    with open(walk_path, "rb") as f:
+        png_b64 = _b64.b64encode(f.read()).decode()
+    with open(gen_path, "a", encoding="utf-8") as f:
+        f.write('\n# Mask walkability sebagai base64-text. Di-decode saat runtime.\n')
+        f.write('const WALK_MASK_B64 := "' + png_b64 + '"\n')
+    print("data: WALK_MASK_B64 ditambahkan")
 
     # 12. Preview PNG untuk review user (tidak di-commit).
     prev = Image.new("RGB", (bw, bh), (38, 38, 46))
