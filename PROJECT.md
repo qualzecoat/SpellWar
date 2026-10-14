@@ -38,6 +38,13 @@ untuk menghambat progres lawan, bukan untuk saling bunuh sebagai tujuan utama.
   `scripts/inventory_ui.gd`, `scripts/exchange*.gd`, `scripts/words.gd`,
   `scripts/darkness_overlay.gd` + `shaders/darkness.gdshader` (vision),
   `scripts/touch_keyboard.gd` (keyboard HP).
+- **Map (Fase 3b1+)**: geometri dari desain user via `tools/trace_map.py`
+  (trace `petunjuk-area-map.png` → walkability grid). Data: `scripts/map_data_gen.gd`
+  (hasil generate: `WALL_RECTS`/`FLOOR_RECTS` hasil greedy merge, `WALK_MASK`,
+  `TEMP_SPAWN`); logika: `scripts/map_data.gd` (`is_walkable`,
+  `clamp_to_walkable`, `random_walkable_near` — dipakai scatter agar huruf tidak
+  buyar di dalam tembok). `scripts/map.gd` membangun lantai/dinding/collision dari
+  data ini (solo, client MP, dan server memakai sumber yang sama).
 
 ## 3. Status fase
 

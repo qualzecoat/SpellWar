@@ -112,4 +112,25 @@
 - Spawn & posisi mesin: SUDAH tersentralisasi sebelum refactor (`map.gd` untuk solo,
   `NetProto.SPAWN_SLOTS` untuk MP) — tidak diubah.
 - Batasan: perilaku harus identik (Fase 2 & 3 dikunci) — refactor murni, tanpa fitur baru.
-- Server di-rebuild + restart (script server/shared berubah).
+## 2026-10-15 — Fase 3b1: geometri map baru (desain user)
+
+- Sumber: `petunjuk-area-map.png` (legenda warna) — merah = tembok absolut,
+  putih = walkable. Aset hand-drawn hanya sketsa; redraw di Godot (optimize).
+- Tracing offline `tools/trace_map.py`: threshold putih 150 (jaga konektivitas),
+  komponen putih terbesar = map (kotak legenda kiri-atas otomatis ter-exclude),
+  isi hanya lubang kecil (cat mesin/angka); blok merah besar = tembok interior.
+- Skala: 1 kotak grid desain (~50px) = 64px game; sel trace 10px desain (12.8px game).
+  Ukuran map: 4454.4 x 3699.2 px (69.6 x 57.8 grid).
+- Verifikasi: flood fill 100% reachable; badan player (disk r=22px) 100% reachable;
+  tidak ada ruangan terisolasi.
+- Collision: greedy rectangle merge → 254 rect dinding (StaticBody2D),
+  visual 268 rect lantai (flat, gaya placeholder).
+- Containment (keputusan user): `MapData.is_walkable/clamp_to_walkable/
+  random_walkable_near` — scatter huruf (reward puzzle & death drop, solo & server)
+  tidak pernah mendarat di dalam tembok. Knockback/dorong aman via fisika
+  (move_and_slide + collision dinding, client & server).
+- 3b1 = geometri SAJA: tanpa mesin/spawn/interaksi. Konstanta mesin jadi sentinel
+  di luar map (validasi jarak selalu gagal aman). Spawn sementara 1 titik
+  (MP: 8 offset kecil) — spawn resmi + random di 3b2.
+- Server di-rebuild + restart (script server/shared berubah: map.gd, map_data.gd,
+  mp_server.gd, net_proto.gd).

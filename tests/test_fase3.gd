@@ -54,13 +54,13 @@ func _init() -> void:
 
 	# --- NetProto: konstanta ---
 	_check(NetProto.SPAWN_SLOTS.size() == 8, "8 titik spawn")
-	var in_map := true
+	var walk_ok := true
 	for s in NetProto.SPAWN_SLOTS:
 		var v: Vector2 = s
-		# Dalam bounding box map v1 (x 700-1300, y -300-900).
-		if v.x < 700 or v.x > 1300 or v.y < -300 or v.y > 900:
-			in_map = false
-	_check(in_map, "semua spawn slot di dalam map v1")
+		# 3b1: semua slot harus walkable di map baru (bukan bbox map v1).
+		if not MapData.is_walkable(v):
+			walk_ok = false
+	_check(walk_ok, "semua spawn slot walkable (map 3b1)")
 	_check(NetProto.RECONNECT_TIME == 90.0, "reconnect 90 detik")
 	_check(NetProto.MIN_PLAYERS == 2 and NetProto.MAX_PLAYERS == 8, "min 2 / max 8 pemain")
 
@@ -333,11 +333,19 @@ func _init() -> void:
 	_check(p3.protect_left > 0.0, "respawn: proteksi 3 dtk aktif")
 	_check(p3.position == Vector2(760, 460), "respawn: di titik spawn tetap")
 	p3.alive = true
-	p3.position = Vector2(1000, -100)  # PUZZLE_POS
+	# 3b1: belum ada mesin puzzle — pakai sentinel PUZZLE_POS agar validasi
+	# jarak lolos; yang diuji: cooldown + scatter containment (walkable).
+	var MapScript3b1 = load("res://scripts/map.gd")
+	p3.position = MapScript3b1.PUZZLE_POS
 	srv._on_puzzle_done(room, p3)
 	_check(absf(p3.puzzle_cd - NetProto.PUZZLE_COOLDOWN) < 0.001,
 		"puzzle_done: cooldown 30 dtk diset")
 	_check(room.pickups.size() == 5, "puzzle_done: 5 huruf buyar")
+	var pk_walk := true
+	for u in room.pickups:
+		if not MapData.is_walkable(u["pos"]):
+			pk_walk = false
+	_check(pk_walk, "puzzle_done: semua pickup walkable (containment 3b1)")
 	srv._on_puzzle_done(room, p3)
 	_check(room.pickups.size() == 5, "puzzle_done saat cooldown: ditolak")
 	p3.words = ["SWORD"]
