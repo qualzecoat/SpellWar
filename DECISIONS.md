@@ -185,3 +185,19 @@
   boot solo+MP+server 200 frame bersih; --import exit 0; --check-only bersih.
 - Deploy: web + rebuild server (`map_data_gen.gd` dipakai server). Live OK
   (200 + COOP/COEP + no-store; Caddy tidak diubah).
+
+## 2026-10-16 — Fix pilar mesin: zona interaksi harus walkable (3b1)
+
+- Laporan user: area kotak abu-abu dengan 2 panah (zona interaksi mesin) ke-block,
+  harusnya bisa dilewati player.
+- Diagnosis: 12 dari 16 pilar mesin yang user gambar di `scenes/map_3b.tscn`
+  ketinggian (~120x131) sampai menutupi kotak zona interaksi di bawah icon mesin.
+- Fix (di working copy, diverifikasi visual + walkability): 12 pilar dikecilkan
+  jadi ~125x116 dan diposisikan ulang agar MENUTUPI icon mesin tapi TIDAK
+  menutupi kotak abu-abu zona interaksi. Verifikasi: 14/14 zona interaksi di
+  sekitar pilar walkable di mask baru; icon mesin tetap tertutup pilar.
+- Aturan desain (konfirmasi user): zona interaksi mesin = area yang BISA
+  dilewati player (bukan tembok). Berlaku untuk 3b3/3b4 saat mesin ditempatkan.
+- Deploy: exporter -> 141 wall rect, flood fill 100%; test map 11/11, inventory
+  9/9, exchange 17/17, fase2 54/54, fase3 94/94; boot solo+MP+server bersih;
+  web + rebuild server; live OK (200 + COOP/COEP + no-store; Caddy tidak diubah).
