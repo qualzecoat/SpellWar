@@ -29,7 +29,7 @@ CELL_PX = 12.8  # resolusi grid walkability (sama seperti trace 3b1)
 
 
 def parse_vec2(s: str):
-    m = re.search(r"Vector2\(\s*([-0-9.]+)\s*,\s*([-0-9.]+)\s*\)", s)
+    m = re.search(r"Vector2\(\s*([-0-9.eE+]+)\s*,\s*([-0-9.eE+]+)\s*\)", s)
     return (float(m.group(1)), float(m.group(2)))
 
 
@@ -63,16 +63,66 @@ def parse_scene(path: str):
         nums = [float(x) for x in m.group(2).split(",")]
         xs, ys = nums[0::2], nums[1::2]
         floors.append((min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys)))
-    return walls, floors
+    # Background ber-texture (map visual user): rect texture = batas map.
+    # Void di luar texture BUKAN walkable (hindari scatter nyasar ke luar map).
+    bg = parse_background(text)
+    return walls, floors, bg
+
+
+def parse_background(text: str):
+    m = re.search(r'\[node name="Background" type="Polygon2D"[^\]]*\]\n', text)
+    if not m:
+        return None
+    lines = []
+    for line in text[m.end():].split("\n"):
+        if line.startswith("["):
+            break
+        lines.append(line)
+    body = "\n".join(lines)
+    if "texture =" not in body:
+        return None  # background flat: tidak ada batas texture
+    pos = parse_vec2(re.search(r"position = ([^\n]+)", body).group(1)) \
+        if "position =" in body else (0.0, 0.0)
+    scl = parse_vec2(re.search(r"scale = ([^\n]+)", body).group(1)) \
+        if "scale =" in body else (1.0, 1.0)
+    pm = re.search(r"polygon = PackedVector2Array\(([^)]+)\)", body)
+    if not pm:
+        return None
+    nums = [float(x) for x in pm.group(1).split(",")]
+    xs, ys = nums[0::2], nums[1::2]
+    return (pos[0] + min(xs) * scl[0], pos[1] + min(ys) * scl[1],
+            pos[0] + max(xs) * scl[0], pos[1] + max(ys) * scl[1])
+
+
+def parse_spawn_pos():
+    """Baca Map3B.SPAWN_POS dari scripts/map_3b.gd (seed flood fill)."""
+    p = os.path.join(ROOT, "scripts", "map_3b.gd")
+    try:
+        with open(p, encoding="utf-8") as fh:
+            m = re.search(r"const SPAWN_POS := Vector2\(([^,]+), ([^\)]+)\)",
+                          fh.read())
+        if m:
+            return (float(m.group(1)), float(m.group(2)))
+    except OSError:
+        pass
+    return (0.0, 0.0)
 
 
 def main() -> None:
-    walls, floors = parse_scene(SCENE)
+    walls, floors, bg = parse_scene(SCENE)
     assert walls, "tidak ada wall rect di scenes/map_3b.tscn"
     print(f"walls={len(walls)} floors={len(floors)}")
 
-    maxx = max(x + w for _, x, y, w, h in walls)
-    maxy = max(y + h for _, x, y, w, h in walls)
+    if bg is not None and abs(bg[0]) < CELL_PX and abs(bg[1]) < CELL_PX:
+        # Map visual = texture user: grid di-clip ke texture (origin tetap 0,0
+        # agar mapping map_data.gd tidak berubah). Void di luar = tidak walkable.
+        maxx, maxy = bg[2], bg[3]
+        print(f"clip grid ke texture: {maxx:.1f} x {maxy:.1f} px")
+    else:
+        maxx = max(x + w for _, x, y, w, h in walls)
+        maxy = max(y + h for _, x, y, w, h in walls)
+        if bg is not None:
+            print("peringatan: texture tidak mulai di (0,0), pakai bounds walls")
     gw = int(math.ceil(maxx / CELL_PX))
     gh = int(math.ceil(maxy / CELL_PX))
     print(f"bounds: {maxx:.1f} x {maxy:.1f} px -> grid {gw} x {gh}")
@@ -91,6 +141,58 @@ def main() -> None:
     walk_n = sum(1 for v in img.getdata() if v > 127)
     print(f"walkable: {walk_n}/{gw*gh} sel "
           f"({100.0*walk_n/(gw*gh):.1f}%)")
+
+    # Kantong terisolasi (tidak terjangkau dari spawn) -> jadikan tembok.
+    # Menjamin mask walkable = area yang benar-benar bisa dicapai player
+    # (mis. margin kertas kosong di tepi texture). Test flood fill 100%
+    # by construction; scatter tidak akan mendarat di kantong mati.
+    px = img.load()
+    spawn = parse_spawn_pos()
+    scx = min(gw - 1, max(0, int(spawn[0] / CELL_PX)))
+    scy = min(gh - 1, max(0, int(spawn[1] / CELL_PX)))
+    if px[scx, scy] <= 127:
+        # seed ketiban tembok: cari sel walkable terdekat
+        found = None
+        for r in range(1, max(gw, gh)):
+            for dy in range(-r, r + 1):
+                for dx in (-r, r):
+                    x, y = scx + dx, scy + dy
+                    if 0 <= x < gw and 0 <= y < gh and px[x, y] > 127:
+                        found = (x, y)
+                        break
+                if found:
+                    break
+            if found:
+                break
+        if found:
+            scx, scy = found
+            print(f"peringatan: SPAWN_POS di dalam tembok, seed geser ke {(scx, scy)}")
+        else:
+            print("peringatan: tidak ada sel walkable, lewati filter isolasi")
+            scx = scy = -1
+    if scx >= 0:
+        seen = bytearray(gw * gh)
+        stack = [scy * gw + scx]
+        while stack:
+            i = stack.pop()
+            if seen[i] or px[i % gw, i // gw] <= 127:
+                continue
+            seen[i] = 1
+            x, y = i % gw, i // gw
+            if x > 0:
+                stack.append(i - 1)
+            if x < gw - 1:
+                stack.append(i + 1)
+            if y > 0:
+                stack.append(i - gw)
+            if y < gh - 1:
+                stack.append(i + gw)
+        cut = 0
+        for i in range(gw * gh):
+            if not seen[i] and px[i % gw, i // gw] > 127:
+                px[i % gw, i // gw] = 0
+                cut += 1
+        print(f"kantong terisolasi dijadikan tembok: {cut} sel")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
