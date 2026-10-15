@@ -27,8 +27,8 @@ func _init() -> void:
 	_check(MapData.is_walkable(Map3B.SPAWN_POS), "TEMP_SPAWN walkable")
 	_check(not MapData.is_walkable(Vector2(-100, -100)),
 		"luar bounds tidak walkable")
-	# Titik tengah blok tembok interior (dari trace): harus wall.
-	_check(not MapData.is_walkable(Vector2(1747.8, 1470.7)),
+	# Titik di dalam tembok (tengah Wall_022 map user): harus wall.
+	_check(not MapData.is_walkable(Vector2(2003.2, 1747.2)),
 		"interior tembok tidak walkable")
 	var slots_ok := true
 	for s in NetProto.SPAWN_SLOTS:
@@ -70,8 +70,8 @@ func _init() -> void:
 
 	# --- containment: scatter tidak pernah di dalam tembok ---
 	var bad := 0
-	var centers := [Map3B.SPAWN_POS, Vector2(1747.8, 1470.7),
-		Vector2(0, 0), Vector2(4000, 3000)]
+	var centers := [Map3B.SPAWN_POS, Vector2(2003.2, 1747.2),
+		Vector2(0, 0), Vector2(7000, 6000)]
 	for center in centers:
 		for i in 60:
 			var p := MapData.random_walkable_near(center, 90.0, 150.0)
@@ -79,13 +79,13 @@ func _init() -> void:
 				bad += 1
 	_check(bad == 0, "scatter containment: 240 sampel selalu walkable")
 	# clamp dari dalam tembok -> walkable
-	var cl := MapData.clamp_to_walkable(Vector2(1747.8, 1470.7))
+	var cl := MapData.clamp_to_walkable(Vector2(2003.2, 1747.2))
 	_check(MapData.is_walkable(cl), "clamp_to_walkable dari tembok -> walkable")
 
 	# --- determinisme: jumlah rect = hasil exporter dari scenes/map_3b.tscn ---
-	# (281/273 — round-trip exporter terverifikasi identik dengan trace 3b1)
-	_check(MapDataGen.WALL_RECTS.size() == 281, "wall rects = 281 (exporter)")
-	_check(MapDataGen.FLOOR_RECTS.size() == 273, "floor rects = 273 (exporter)")
+	# (141/0 — map versi edit user 2026-10-16: 141 wall rect besar, floor dihapus)
+	_check(MapDataGen.WALL_RECTS.size() == 141, "wall rects = 141 (exporter)")
+	_check(MapDataGen.FLOOR_RECTS.size() == 0, "floor rects = 0 (exporter)")
 
 	print("map: %d lolos, %d gagal" % [_passed, _failed])
 	quit(_failed)

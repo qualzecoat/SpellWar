@@ -43,10 +43,11 @@ def parse_scene(path: str):
             r"size = ([^\n]+)", text):
         sizes[m.group(1)] = parse_vec2(m.group(2))
     # node Wall_* -> (position, shape id)
+    # Format toleran: atribut tambahan (unique_id=...) boleh ada sebelum ']'.
     walls = []
     for m in re.finditer(
-            r'\[node name="(Wall_\d+)" type="CollisionShape2D" '
-            r'parent="Walls"\]\s*\nposition = ([^\n]+)\s*\n'
+            r'\[node name="(Wall_[^"]+)" type="CollisionShape2D" '
+            r'parent="Walls"[^\]]*\]\s*\nposition = ([^\n]+)\s*\n'
             r'shape = SubResource\("([^"]+)"\)', text):
         name, pos_s, sid = m.group(1), m.group(2), m.group(3)
         assert sid in sizes, f"shape {sid} tidak ketemu untuk {name}"
@@ -56,8 +57,9 @@ def parse_scene(path: str):
     # node Floor_* -> bbox dari polygon (untuk preview)
     floors = []
     for m in re.finditer(
-            r'\[node name="(Floor_\d+)" type="Polygon2D" parent="Floor"\]\s*\n'
-            r"polygon = PackedVector2Array\(([^)]+)\)", text):
+            r'\[node name="(Floor_[^"]+)" type="Polygon2D" parent="Floor"'
+            r"[^\]]*\].*?\npolygon = PackedVector2Array\(([^)]+)\)",
+            text, re.S):
         nums = [float(x) for x in m.group(2).split(",")]
         xs, ys = nums[0::2], nums[1::2]
         floors.append((min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys)))
