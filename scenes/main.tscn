@@ -1,34 +1,38 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene format=3 uid="uid://dyoo8cvi6kgux"]
 
-[ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
-[ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
-[ext_resource type="PackedScene" path="res://scenes/map_3b.tscn" id="3_map3b"]
-[ext_resource type="Texture2D" path="res://assets/player.svg" id="8_sprite"]
+[ext_resource type="Script" uid="uid://bfwqtqxd4oede" path="res://scripts/game.gd" id="1_game"]
+[ext_resource type="Script" uid="uid://fluamiit1aaj" path="res://scripts/player.gd" id="2_player"]
+[ext_resource type="PackedScene" uid="uid://bhildh0f5dnrs" path="res://scenes/map_3b.tscn" id="3_map3b"]
+[ext_resource type="Texture2D" uid="uid://ylfl50fh5xty" path="res://assets/player.svg" id="8_sprite"]
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="11_hudscene"]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_player"]
-radius = 22.0
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_tbgi4"]
+radius = 25.0
+height = 74.0
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=251384513]
 script = ExtResource("1_game")
 
-[node name="Map" parent="." instance=ExtResource("3_map3b")]
+[node name="Map" parent="." unique_id=964312587 instance=ExtResource("3_map3b")]
+position = Vector2(1718, 885)
+metadata/_edit_lock_ = true
 
-[node name="Player" type="CharacterBody2D" parent="."]
-position = Vector2(2003.2, 1747.2)
+[node name="Player" type="CharacterBody2D" parent="." unique_id=1972771823]
 z_index = 1
+position = Vector2(6073, 4859)
 script = ExtResource("2_player")
 
-[node name="Sprite2D" type="Sprite2D" parent="Player"]
+[node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=1252492823]
 texture = ExtResource("8_sprite")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
-shape = SubResource("CircleShape2D_player")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=858806077]
+position = Vector2(0, -1)
+shape = SubResource("CapsuleShape2D_tbgi4")
 
-[node name="SwingPivot" type="Node2D" parent="Player"]
+[node name="SwingPivot" type="Node2D" parent="Player" unique_id=1397283712]
 
-[node name="Camera2D" type="Camera2D" parent="Player"]
+[node name="Camera2D" type="Camera2D" parent="Player" unique_id=1175288956]
+position = Vector2(27.000244, 81.000244)
 position_smoothing_enabled = true
 
-
-[node name="HUD" parent="." instance=ExtResource("11_hudscene")]
+[node name="HUD" parent="." unique_id=942501581 instance=ExtResource("11_hudscene")]

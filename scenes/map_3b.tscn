@@ -426,11 +426,6 @@ metadata/_edit_lock_ = true
 
 [node name="Floor" type="Node2D" parent="." unique_id=1529741267]
 
-[node name="Floor_128" type="Polygon2D" parent="Floor" unique_id=2113315194]
-position = Vector2(-3275, -33)
-color = Color(0.1, 0.1, 0.2, 1)
-polygon = PackedVector2Array(2368, 1548.8, 2662.4, 1548.8, 2662.4, 2150.4, 2368, 2150.4)
-
 [node name="Walls" type="StaticBody2D" parent="." unique_id=1783536521]
 
 [node name="Wall_021" type="CollisionShape2D" parent="Walls" unique_id=244309926]
