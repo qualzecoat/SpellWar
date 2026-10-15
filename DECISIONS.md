@@ -159,3 +159,29 @@
   dihapus; `tools/trace_map.py` disimpan sebagai riwayat.
 - Aturan: edit scene → `python3 tools/export_map_data.py` → commit/push →
   deploy web + rebuild server. `map_data_gen.gd` JANGAN diedit manual.
+
+## 2026-10-16 — Deploy map 3b1 versi edit user (live)
+
+- User ambil alih map: edit `scenes/map_3b.tscn` sendiri di Godot PC — Background
+  diganti texture gambar hand-drawn (`assets/PNG/Aset Map Utama Compresed.png`,
+  64MB, 16200x14280); tembok di-rebuild 281 -> 141 rect besar selaras gambar;
+  floor hampir semua dihapus (lantai = gambar itu sendiri).
+- Keputusan user (konfirmasi 2026-10-16): (1) gambar hand-drawn = VISUAL FINAL
+  map (bukan sekadar sketsa); (2) pilar-pilar kecil di ruangan = posisi mesin
+  (untuk 3b3/3b4) — untuk sekarang wall biasa; (3) oke deploy.
+- Temuan saat verifikasi & perbaikan:
+  - PNG belum di-commit user -> .tscn referensi file hilang -> game gagal load.
+    Pelajaran: bila scene referensi aset baru, pastikan aset ikut ke-commit.
+  - TEMP_SPAWN lama (2003.2,1747.2) ketiban Wall_022 -> pindah ke (4150,3900)
+    ruang tengah (+ 8 slot MP r=96 & titik dummy, semua dicek walkable).
+  - Exporter diperkuat: parse format .tscn baru (atribut `unique_id`, id
+    sub_resource gaya baru); clip grid walkability ke bounds texture Background
+    (void di luar map = tidak walkable); flood-fill dari SPAWN_POS — kantong
+    terisolasi (margin kertas kosong di tepi texture, ~4rb sel) otomatis jadi
+    tembok di mask. Flood fill 100% by construction; scatter tak akan mendarat
+    di kantong mati.
+  - Map user ~8460x7488 px (2x lipat versi trace); .pck web ~64MB (texture).
+- Test: map 11/11, inventory 9/9, exchange 17/17, fase2 54/54, fase3 94/94;
+  boot solo+MP+server 200 frame bersih; --import exit 0; --check-only bersih.
+- Deploy: web + rebuild server (`map_data_gen.gd` dipakai server). Live OK
+  (200 + COOP/COEP + no-store; Caddy tidak diubah).

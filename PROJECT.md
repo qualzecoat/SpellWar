@@ -39,13 +39,20 @@ untuk menghambat progres lawan, bukan untuk saling bunuh sebagai tujuan utama.
   `scripts/darkness_overlay.gd` + `shaders/darkness.gdshader` (vision),
   `scripts/touch_keyboard.gd` (keyboard HP).
 - **Map (Fase 3b1+)**: `scenes/map_3b.tscn` = SINGLE SOURCE OF TRUTH (editable di
-  editor Godot: node `Wall_001`.. di bawah `Walls`, `Floor_001`.. di bawah `Floor`).
+  editor Godot: node `Wall_001`.. di bawah `Walls`). **Visual final = texture
+  gambar hand-drawn user** (`assets/PNG/Aset Map Utama Compresed.png`, 64MB,
+  dipakai sebagai Background; keputusan user 2026-10-16). Pilar-pilar kecil di
+  ruangan = wall biasa untuk sekarang (nanti jadi posisi mesin 3b3/3b4).
   Script: `scripts/map_3b.gd` (`class_name Map3B`, hanya konstanta sementara 3b1).
   Data turunan walkability: `scripts/map_data_gen.gd` — DITURUNKAN via
-  `tools/export_map_data.py` dari .tscn (JANGAN edit manual). Logika walkability:
-  `scripts/map_data.gd` (`is_walkable`, `clamp_to_walkable`, `random_walkable_near` —
-  dipakai scatter agar huruf tidak buyar di dalam tembok). Solo, client MP, dan server
-  memakai scene & data yang sama.
+  `tools/export_map_data.py` dari .tscn (JANGAN edit manual). Exporter: parse
+  format .tscn baru (atribut `unique_id`), clip grid ke bounds texture Background
+  (void di luar map = tidak walkable), dan flood-fill dari SPAWN_POS —
+  kantong terisolasi otomatis jadi tembok (flood fill 100% by construction).
+  Logika walkability: `scripts/map_data.gd` (`is_walkable`, `clamp_to_walkable`,
+  `random_walkable_near` — dipakai scatter agar huruf tidak buyar di dalam
+  tembok). Solo, client MP, dan server memakai scene & data yang sama.
+  Ukuran map user: ~8460 x 7488 px, 141 wall rect.
 
 ## 3. Status fase
 
