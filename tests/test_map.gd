@@ -37,6 +37,18 @@ func _init() -> void:
 			break
 	_check(slots_ok, "semua slot MP walkable")
 
+	# --- mesin ekstraksi (mahkota, tengah map): badan = TEMBOK 240x240,
+	# 4 area interaksi (atas/bawah/kiri/kanan) = walkable (spec user 2026-10-16) ---
+	_check(not MapData.is_walkable(Vector2(4262, 3774)),
+		"badan mesin ekstraksi = tembok")
+	var extract_zones_ok := true
+	for z in [Vector2(4262, 3600), Vector2(4262, 3950),
+			Vector2(4080, 3774), Vector2(4445, 3774)]:
+		if not MapData.is_walkable(z):
+			extract_zones_ok = false
+			break
+	_check(extract_zones_ok, "4 zona interaksi ekstraksi walkable")
+
 	# --- konektivitas: flood fill dari TEMP_SPAWN harus 100% ---
 	var gw: int = MapDataGen.GRID_W
 	var gh: int = MapDataGen.GRID_H
@@ -83,8 +95,9 @@ func _init() -> void:
 	_check(MapData.is_walkable(cl), "clamp_to_walkable dari tembok -> walkable")
 
 	# --- determinisme: jumlah rect = hasil exporter dari scenes/map_3b.tscn ---
-	# (141/0 — map versi edit user 2026-10-16: 141 wall rect besar, floor dihapus)
-	_check(MapDataGen.WALL_RECTS.size() == 141, "wall rects = 141 (exporter)")
+	# (142/0 — 2026-10-16: +1 wall mesin ekstraksi 240x240 di tengah mahkota
+	# (4262,3774); pilar mesin asli tetap ada)
+	_check(MapDataGen.WALL_RECTS.size() == 142, "wall rects = 142 (exporter)")
 	_check(MapDataGen.FLOOR_RECTS.size() == 0, "floor rects = 0 (exporter)")
 
 	print("map: %d lolos, %d gagal" % [_passed, _failed])

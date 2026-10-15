@@ -201,3 +201,24 @@
 - Deploy: exporter -> 141 wall rect, flood fill 100%; test map 11/11, inventory
   9/9, exchange 17/17, fase2 54/54, fase3 94/94; boot solo+MP+server bersih;
   web + rebuild server; live OK (200 + COOP/COEP + no-store; Caddy tidak diubah).
+
+## 2026-10-16 — Spec area interaksi dikunci + tembok mesin ekstraksi (3b1)
+
+- Spec dari user (gambar anotasi): (a) mesin minigame = 1 area interaksi
+  walkable (kotak abu-abu 2 panah); (b) mesin ekstraksi (mahkota, tengah map)
+  = badan mesin TEMBOK + 4 area interaksi walkable (atas/bawah/kiri/kanan).
+  Berlaku untuk 3b3/3b4.
+- Implementasi: Wall_161 baru 240x240 di tengah mahkota (4262, 3774)
+  (shape `RectangleShape2D_extract`); pilar mesin asli di (5507, 4572) tetap
+  sebagai wall. Total 142 wall rect.
+- Temuan: 2 slot spawn MP sementara + titik spawn lama ketiban wall mesin
+  ekstraksi baru -> TEMP_SPAWN digeser ke (3900, 4100) (+ 8 slot MP r=96 &
+  titik dummy/patrol, semua dicek walkable). Spawn resmi + random = 3b2.
+- Pelajaran: exporter (`tools/export_map_data.py`) HANYA membaca node
+  CollisionShape2D dengan `parent="Walls"` — node ber-parent lain (mis.
+  `parent="."`) diabaikan diam-diam. Pastikan parent benar sebelum export.
+- Test: map 13/13 (termasuk regression: badan ekstraksi = tembok, 4 zona
+  walkable), inventory 9/9, exchange 17/17, fase2 54/54, fase3 94/94;
+  boot solo+MP+server 200 frame bersih; --import exit 0; --check-only bersih.
+- Deploy: web + rebuild server (`map_3b.gd`/`map_data_gen.gd` dipakai server).
+  Live OK (200 + COOP/COEP + no-store; Caddy tidak diubah).

@@ -17,23 +17,25 @@ const EXCHANGE_POS := Vector2(-99999, -99999)
 const MACHINE_POS := Vector2(-99999, -99999)
 # Spawn sementara 3b1 (spawn resmi + random: 3b2).
 # 2026-10-16: dipindah ke ruang tengah map baru user (titik lama ketiban tembok).
-const SPAWN_POS := Vector2(4150.0, 3900.0)
-const DUMMY_SPOT := Vector2(4310.0, 3900.0)
-const DUMMY_PATROL_A := Vector2(3990.0, 3980.0)
-const DUMMY_PATROL_B := Vector2(4150.0, 3740.0)
+# 2026-10-16 (pm): digeser ke (3900,4100) — titik lama ketiban wall mesin
+# ekstraksi 240x240 di (4262,3774).
+const SPAWN_POS := Vector2(3900.0, 4100.0)
+const DUMMY_SPOT := Vector2(4060.0, 4100.0)
+const DUMMY_PATROL_A := Vector2(3740.0, 4180.0)
+const DUMMY_PATROL_B := Vector2(3900.0, 3940.0)
 # Slot spawn sementara MP 3b1 (8 offset di sekitar titik tengah sementara).
 const TEMP_SPAWN_SLOTS: Array = [
-	Vector2(4246.0, 3900.0),
-	Vector2(4217.9, 3967.9),
-	Vector2(4150.0, 3996.0),
-	Vector2(4082.1, 3967.9),
-	Vector2(4054.0, 3900.0),
-	Vector2(4082.1, 3832.1),
-	Vector2(4150.0, 3804.0),
-	Vector2(4217.9, 3832.1),
+	Vector2(3996.0, 4100.0),
+	Vector2(3967.9, 4167.9),
+	Vector2(3900.0, 4196.0),
+	Vector2(3832.1, 4167.9),
+	Vector2(3804.0, 4100.0),
+	Vector2(3832.1, 4032.1),
+	Vector2(3900.0, 4004.0),
+	Vector2(3967.9, 4032.1),
 ]
 const TEMP_DUMMY_SPOTS: Array = [
-	Vector2(4310.0, 3900.0),
-	Vector2(3990.0, 3980.0),
-	Vector2(4150.0, 3740.0),
+	Vector2(4060.0, 4100.0),
+	Vector2(3740.0, 4180.0),
+	Vector2(3900.0, 3940.0),
 ]
