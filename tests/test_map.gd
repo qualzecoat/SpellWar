@@ -94,6 +94,31 @@ func _init() -> void:
 	var cl := MapData.clamp_to_walkable(Vector2(2003.2, 1747.2))
 	_check(MapData.is_walkable(cl), "clamp_to_walkable dari tembok -> walkable")
 
+	# --- 3b2: 8 area spawn resmi (angka 1-8) ---
+	_check(Map3B.SPAWN_POINTS.size() == 8, "SPAWN_POINTS = 8 titik")
+	var spawns_ok := true
+	for p in Map3B.SPAWN_POINTS:
+		if not MapData.is_walkable(p):
+			spawns_ok = false
+			break
+	_check(spawns_ok, "8 SPAWN_POINTS semua walkable")
+	# random_spawn() selalu return salah satu dari 8
+	var rs_ok := true
+	for i in 100:
+		var rp: Vector2 = Map3B.random_spawn()
+		var found := false
+		for p in Map3B.SPAWN_POINTS:
+			if rp == p:
+				found = true
+				break
+		if not found:
+			rs_ok = false
+			break
+	_check(rs_ok, "random_spawn() 100x selalu salah satu dari 8")
+	# SPAWN_SLOTS (MP) = SPAWN_POINTS
+	_check(NetProto.SPAWN_SLOTS == Map3B.SPAWN_POINTS,
+		"NetProto.SPAWN_SLOTS = SPAWN_POINTS")
+
 	# --- determinisme: jumlah rect = hasil exporter dari scenes/map_3b.tscn ---
 	# (142/0 — 2026-10-16: +1 wall mesin ekstraksi 240x240 di tengah mahkota
 	# (4262,3774); pilar mesin asli tetap ada)

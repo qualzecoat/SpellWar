@@ -19,6 +19,8 @@ func _ready() -> void:
 	map = $Map
 	camera = $Player/Camera2D
 	super._ready()
+	# 3b2: random spawn di salah satu dari 8 area resmi.
+	player.position = Map3B.random_spawn()
 	# --- khusus solo ---
 	player.joystick = hud.joystick
 	player.hp_changed.connect(_on_hp_changed)
@@ -304,7 +306,7 @@ func _respawn_player() -> void:
 	_dead = false
 	hud.hide_respawn()
 	# Bonus stat dari kata ikut hilang karena semua huruf jatuh (aturan pecah-kata).
-	player.respawn_at(map.SPAWN_POS)
+	player.respawn_at(Map3B.random_spawn())
 	_refresh_interact()
 
 

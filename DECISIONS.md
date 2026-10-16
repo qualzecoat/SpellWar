@@ -222,3 +222,27 @@
   boot solo+MP+server 200 frame bersih; --import exit 0; --check-only bersih.
 - Deploy: web + rebuild server (`map_3b.gd`/`map_data_gen.gd` dipakai server).
   Live OK (200 + COOP/COEP + no-store; Caddy tidak diubah).
+
+## 2026-10-16 — Fase 3b2: 8 area spawn + random spawn
+
+- User perintahkan 3b2: player spawn di area bertuliskan angka 1-8, random
+  di antara 8 titik tersebut.
+- Implementasi (`scripts/map_3b.gd`): `SPAWN_POINTS` = 8 Vector2 resmi:
+  1: (1785.6,1836.8) kiri atas; 2: (1132.8,3347.2) kiri bawah;
+  3: (3398.4,2796.8) tengah kiri-atas; 4: (3398.4,3603.2) tengah kiri-bawah;
+  5: (4806.4,2502.4) tengah kanan-atas; 6: (6406.4,2988.8) kanan atas;
+  7: (6496.0,4512.0) kanan bawah; 8: (4806.4,3603.2) tengah kanan-bawah.
+  Semua terverifikasi walkable di mask; jarak minimum antar titik 806px.
+- `SPAWN_POS` = alias ke titik 1 (backward compat, dipakai fallback flood fill).
+  `TEMP_SPAWN_SLOTS` = alias ke `SPAWN_POINTS` (bukan lingkaran sementara lagi).
+  `NetProto.SPAWN_SLOTS` = `TEMP_SPAWN_SLOTS` (tidak berubah) -> MP otomatis
+  pakai 8 titik resmi.
+- Random: solo (`game.gd`) pakai `Map3B.random_spawn()` di `_ready()` &
+  `_respawn_player()`; MP (`mp_server.gd`) shuffle `SPAWN_SLOTS` saat assign
+  (sudah ada, tidak diubah); respawn MP tetap di slot masing-masing.
+- Visual: marker lingkaran + angka 1-8 digambar di `_ready()` map_3b.gd
+  (walkable, hanya visual).
+- Test: map 17/17 (termasuk 4 regression baru: 8 titik, semua walkable,
+  random_spawn 100x valid, SPAWN_SLOTS = SPAWN_POINTS), inventory 9/9,
+  exchange 17/17, fase2 54/54, fase3 94/94.
+- Deploy: web + rebuild server. Live OK.
