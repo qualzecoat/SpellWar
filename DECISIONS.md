@@ -246,3 +246,22 @@
   random_spawn 100x valid, SPAWN_SLOTS = SPAWN_POINTS), inventory 9/9,
   exchange 17/17, fase2 54/54, fase3 94/94.
 - Deploy: web + rebuild server. Live OK.
+
+## 2026-10-16 — Fase 3b2 REVISI: spawn di angka texture, hapus marker runtime
+
+- Koreksi user: angka 1-8 SUDAH DIGAMBAR di texture map (pink/magenta) — bukan
+  Muse yang membuat marker. Maka: (1) marker runtime (lingkaran+angka di
+  `_ready()` map_3b.gd) DIHAPUS (diganti NOTE), (2) `SPAWN_POINTS` = posisi
+  angka hasil deteksi piksel pink di texture:
+  1: (633.6,3526.4) kiri; 2: (2425.6,1939.2) kiri atas;
+  3: (5216.0,1644.8) atas tengah; 4: (7801.6,3718.4) kanan atas;
+  5: (8352.0,5523.2) kanan ujung; 6: (6099.2,5664.0) kanan bawah;
+  7: (3795.2,6854.4) bawah tengah; 8: (1977.6,5792.0) kiri bawah.
+  Semua terverifikasi walkable di mask.
+- `SPAWN_POS` diupdate ke titik 1 baru (633.6,3526.4). Mekanisme random tidak
+  berubah (solo `random_spawn()`, MP shuffle).
+- Pelajaran: jangan membuat visual yang user sudah gambar sendiri — tanya/
+  cek texture dulu sebelum menambah marker.
+- Test revisi: map 17/17, inventory 9/9, exchange 17/17, fase2 54/54,
+  fase3 94/94 (test 3b2 generik, lolos dengan posisi baru). Boot 200 frame
+  bersih. Deploy: push + rebuild server + web. Live OK.
