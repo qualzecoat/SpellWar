@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bhildh0f5dnrs"]
 
-[ext_resource type="Script" uid="uid://fscy1whiaj4k" path="res://scripts/map_3b.gd" id="1_map3b"]
-[ext_resource type="Texture2D" uid="uid://dxfp2em7a6sp7" path="res://assets/PNG/Aset Map Utama Compresed.png" id="2_qnftd"]
+[ext_resource type="Script" uid="uid://cn1fffmi2sjcd" path="res://scripts/map_3b.gd" id="1_map3b"]
+[ext_resource type="Texture2D" uid="uid://c2spu6rwi15xd" path="res://assets/PNG/Aset Map Utama Compresed.png" id="2_qnftd"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall_021"]
 size = Vector2(1696.5, 1714)
@@ -408,25 +408,30 @@ size = Vector2(125.3, 116.4)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nhhqv"]
 size = Vector2(130, 125.65625)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_extract"]
-size = Vector2(240, 240)
-
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_g04ne"]
 size = Vector2(405.04297, 1332)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_lobp1"]
-size = Vector2(94, 1332)
+size = Vector2(144, 1332)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_extract"]
+size = Vector2(136, 134)
 
 [node name="Map3B" type="Node2D" unique_id=2018019038]
 script = ExtResource("1_map3b")
 
 [node name="Background" type="Polygon2D" parent="." unique_id=203661410]
+visible = false
 position = Vector2(0, 3.0517578e-05)
 scale = Vector2(0.5243697, 0.5243698)
 texture = ExtResource("2_qnftd")
 polygon = PackedVector2Array(0, 0, 16134.545, 0, 16134.545, 14280, 0, 14280)
 uv = PackedVector2Array(0, 0, 1, 0, 1, 1, 0, 1)
-metadata/_edit_lock_ = true
+
+[node name="AsetMapUtamaCompresed" type="Sprite2D" parent="." unique_id=1468755645]
+position = Vector2(4249.0005, 3743.0002)
+scale = Vector2(0.5241596, 0.5241596)
+texture = ExtResource("2_qnftd")
 
 [node name="Floor" type="Node2D" parent="." unique_id=1529741267]
 
@@ -589,11 +594,11 @@ position = Vector2(2390.5, 5908.3438)
 shape = SubResource("RectangleShape2D_bgrr5")
 
 [node name="Wall_140" type="CollisionShape2D" parent="Walls" unique_id=2061798698]
-position = Vector2(870.60, 2114.78)
+position = Vector2(885, 2141)
 shape = SubResource("RectangleShape2D_1grdm")
 
 [node name="Wall_141" type="CollisionShape2D" parent="Walls" unique_id=1973046096]
-position = Vector2(1318.17, 2891.90)
+position = Vector2(1318.17, 2891.9)
 shape = SubResource("RectangleShape2D_fdod3")
 
 [node name="Wall_142" type="CollisionShape2D" parent="Walls" unique_id=1628544831]
@@ -609,11 +614,11 @@ position = Vector2(3024, 2767)
 shape = SubResource("RectangleShape2D_oypct")
 
 [node name="Wall_145" type="CollisionShape2D" parent="Walls" unique_id=1291224918]
-position = Vector2(2632.68, 4006.71)
+position = Vector2(2643, 4035)
 shape = SubResource("RectangleShape2D_b84oj")
 
 [node name="Wall_146" type="CollisionShape2D" parent="Walls" unique_id=1717379708]
-position = Vector2(2630.59, 4586.14)
+position = Vector2(2645, 4602)
 shape = SubResource("RectangleShape2D_5o43r")
 
 [node name="Wall_147" type="CollisionShape2D" parent="Walls" unique_id=1963445839]
@@ -621,7 +626,7 @@ position = Vector2(3148, 5599)
 shape = SubResource("RectangleShape2D_lr6l2")
 
 [node name="Wall_148" type="CollisionShape2D" parent="Walls" unique_id=882094472]
-position = Vector2(2377.30, 6657.92)
+position = Vector2(2393, 6674)
 shape = SubResource("RectangleShape2D_pv1nx")
 
 [node name="Wall_132" type="CollisionShape2D" parent="Walls" unique_id=1916278875]
@@ -946,15 +951,15 @@ position = Vector2(4593, 5850)
 shape = SubResource("RectangleShape2D_pv1nx")
 
 [node name="Wall_150" type="CollisionShape2D" parent="Walls" unique_id=1930013811]
-position = Vector2(5319.67, 6664.74)
+position = Vector2(5352, 6673)
 shape = SubResource("RectangleShape2D_ay82p")
 
 [node name="Wall_151" type="CollisionShape2D" parent="Walls" unique_id=2111386558]
-position = Vector2(7643.70, 5206.99)
+position = Vector2(7676, 5221)
 shape = SubResource("RectangleShape2D_ay82p")
 
 [node name="Wall_152" type="CollisionShape2D" parent="Walls" unique_id=1440272628]
-position = Vector2(7197.69, 4454.00)
+position = Vector2(7236, 4468)
 shape = SubResource("RectangleShape2D_b4h64")
 
 [node name="Wall_153" type="CollisionShape2D" parent="Walls" unique_id=191697352]
@@ -962,11 +967,11 @@ position = Vector2(6609, 4592)
 shape = SubResource("RectangleShape2D_k5lem")
 
 [node name="Wall_161" type="CollisionShape2D" parent="Walls" unique_id=1919910832]
-position = Vector2(5507.16, 4571.98)
+position = Vector2(5539, 4592)
 shape = SubResource("RectangleShape2D_tfhtw")
 
 [node name="Wall_162" type="CollisionShape2D" parent="Walls" unique_id=423367041]
-position = Vector2(5009.45, 4591.91)
+position = Vector2(5041, 4596)
 shape = SubResource("RectangleShape2D_js6ni")
 
 [node name="Wall_154" type="CollisionShape2D" parent="Walls" unique_id=1392310734]
@@ -978,11 +983,11 @@ position = Vector2(5917, 3333)
 shape = SubResource("RectangleShape2D_fsbv1")
 
 [node name="Wall_156" type="CollisionShape2D" parent="Walls" unique_id=1594294461]
-position = Vector2(5884.23, 2749.27)
+position = Vector2(5916, 2777)
 shape = SubResource("RectangleShape2D_8dx74")
 
 [node name="Wall_157" type="CollisionShape2D" parent="Walls" unique_id=525149322]
-position = Vector2(3507.45, 2743.50)
+position = Vector2(3525, 2764)
 shape = SubResource("RectangleShape2D_8dx74")
 
 [node name="Wall_158" type="CollisionShape2D" parent="Walls" unique_id=770792933]
@@ -998,8 +1003,12 @@ position = Vector2(8441.521, 4429)
 shape = SubResource("RectangleShape2D_g04ne")
 
 [node name="Wall_034" type="CollisionShape2D" parent="Walls" unique_id=566330808]
-position = Vector2(8409, 5628)
+position = Vector2(8434, 5628)
 shape = SubResource("RectangleShape2D_lobp1")
+
+[node name="Wall_Extract" type="CollisionShape2D" parent="Walls" unique_id=467927664]
+position = Vector2(4280, 3779)
+shape = SubResource("RectangleShape2D_extract")
 
 [node name="Wall_159" type="CollisionShape2D" parent="." unique_id=1058992042]
 position = Vector2(3211, 696)
@@ -1008,7 +1017,3 @@ shape = SubResource("RectangleShape2D_nhhqv")
 [node name="Wall_160" type="CollisionShape2D" parent="." unique_id=75140334]
 position = Vector2(6105, 819)
 shape = SubResource("RectangleShape2D_nhhqv")
-
-[node name="Wall_Extract" type="CollisionShape2D" parent="Walls" unique_id=467927664]
-position = Vector2(4262, 3774)
-shape = SubResource("RectangleShape2D_extract")
