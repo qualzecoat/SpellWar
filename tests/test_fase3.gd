@@ -333,20 +333,33 @@ func _init() -> void:
 	_check(p3.protect_left > 0.0, "respawn: proteksi 3 dtk aktif")
 	_check(p3.position == Vector2(760, 460), "respawn: di titik spawn tetap")
 	p3.alive = true
-	# 3b1: belum ada mesin puzzle — pakai sentinel PUZZLE_POS agar validasi
-	# jarak lolos; yang diuji: cooldown + scatter containment (walkable).
-	p3.position = Map3B.PUZZLE_POS
-	srv._on_puzzle_done(room, p3)
-	_check(absf(p3.puzzle_cd - NetProto.PUZZLE_COOLDOWN) < 0.001,
-		"puzzle_done: cooldown 30 dtk diset")
+	# 3b3: 16 mesin puzzle — player di dalam area interaksi mesin 0.
+	var r0: Rect2 = Map3B.PUZZLE_INTERACT[0]
+	p3.position = r0.get_center()
+	srv._on_puzzle_done(room, p3, 0)
+	_check(absf(float(p3.puzzle_cds.get(0, 0.0)) - NetProto.PUZZLE_COOLDOWN) < 0.001,
+		"puzzle_done: cooldown 30 dtk diset untuk mesin 0")
 	_check(room.pickups.size() == 5, "puzzle_done: 5 huruf buyar")
 	var pk_walk := true
 	for u in room.pickups:
 		if not MapData.is_walkable(u["pos"]):
 			pk_walk = false
 	_check(pk_walk, "puzzle_done: semua pickup walkable (containment 3b1)")
-	srv._on_puzzle_done(room, p3)
-	_check(room.pickups.size() == 5, "puzzle_done saat cooldown: ditolak")
+	srv._on_puzzle_done(room, p3, 0)
+	_check(room.pickups.size() == 5, "puzzle_done mesin 0 saat cooldown: ditolak")
+	# Cooldown per-mesin: mesin 1 harus tetap bisa dipakai.
+	var r1: Rect2 = Map3B.PUZZLE_INTERACT[1]
+	p3.position = r1.get_center()
+	srv._on_puzzle_done(room, p3, 1)
+	_check(room.pickups.size() == 10, "puzzle_done mesin 1 (beda mesin): diterima")
+	_check(absf(float(p3.puzzle_cds.get(1, 0.0)) - NetProto.PUZZLE_COOLDOWN) < 0.001,
+		"puzzle_done: cooldown diset untuk mesin 1")
+	# Anti-cheat: idx invalid & posisi di luar area ditolak.
+	srv._on_puzzle_done(room, p3, 99)
+	_check(room.pickups.size() == 10, "puzzle_done idx invalid: ditolak")
+	p3.position = Vector2(100, 100)  # jauh dari semua mesin
+	srv._on_puzzle_done(room, p3, 2)
+	_check(room.pickups.size() == 10, "puzzle_done di luar area: ditolak")
 	p3.words = ["SWORD"]
 	p3.ep = 100
 	srv._on_weapon(room, p3, "SWORD")

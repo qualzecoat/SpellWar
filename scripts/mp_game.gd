@@ -79,7 +79,7 @@ func _read_input() -> Vector2:
 # ---------- override hook base ----------
 
 func _on_minigame_success() -> void:
-	Net.send_puzzle_done()
+	Net.send_puzzle_done(_interact_machine_idx)
 
 
 func _sync_after_exchange() -> void:
@@ -90,7 +90,7 @@ func _sync_after_exchange() -> void:
 
 func _do_interact() -> void:
 	if _interact_available:
-		Net.send_interact_puzzle()
+		Net.send_interact_puzzle(_interact_machine_idx)
 	elif _exchange_available:
 		Net.send_interact_exchange()
 	else:
@@ -352,11 +352,17 @@ func on_inventory_changed_silent() -> void:
 func _update_proximity() -> void:
 	if ui_open or _dead:
 		return
-	var dp := _my_pos.distance_to(map.PUZZLE_POS)
+	var found := -1
+	for i in Map3B.PUZZLE_INTERACT.size():
+		var r: Rect2 = Map3B.PUZZLE_INTERACT[i]
+		if r.has_point(_my_pos):
+			found = i
+			break
 	var de := _my_pos.distance_to(map.EXCHANGE_POS)
-	var show_puzzle := dp < 150.0
+	var show_puzzle := found >= 0
 	var show_exch := de < 150.0 and not show_puzzle
-	if show_puzzle != _interact_available or show_exch != _exchange_available:
+	if found != _interact_machine_idx or show_puzzle != _interact_available or show_exch != _exchange_available:
+		_interact_machine_idx = found
 		_interact_available = show_puzzle
 		_exchange_available = show_exch
 		_refresh_interact()

@@ -265,3 +265,28 @@
 - Test revisi: map 17/17, inventory 9/9, exchange 17/17, fase2 54/54,
   fase3 94/94 (test 3b2 generik, lolos dengan posisi baru). Boot 200 frame
   bersih. Deploy: push + rebuild server + web. Live OK.
+
+## 2026-10-16 — Fase 3b3: 16 mesin puzzle + area interaksi
+
+- User perintahkan 3b3: 16 mesin minigame (8 dekat spawn + 8 di tengah).
+- Posisi badan mesin (pillar hijau) dari deteksi piksel hijau di texture:
+  1:(1313,2906) 2:(6077,829) 3:(5323,6683) 4:(2628,4044) 5:(5888,2784)
+  6:(3007,2779) 7:(7203,4479) 8:(2628,4613) 9:(5011,4607) 10:(2377,6683)
+  11:(3195,708) 12:(5510,4605) 13:(3505,2780) 14:(5890,3344)
+  15:(874,2150) 16:(7643,5235).
+- Area interaksi: 1 per mesin, kotak abu-abu 2 panah di BAWAH mesin
+  (offset +100 Y, 160x110; mesin 6: 140x100, mesin 14: 120x90 offset +110 —
+  disesuaikan agar 100% walkable). Semua 16 terverifikasi walkable di mask.
+  Badan mesin = tembok (pillar di .tscn, sudah ada).
+- Mekanisme: player masuk area (Rect2.has_point) → ACTION menyala
+  ("PUZZLE (E)") → tap → UI minigame (sistem Fase 1) → sukses → 5 huruf
+  buyar di sekitar mesin tsb → cooldown 30 dtk PER-MESIN PER-PLAYER.
+- Cooldown: solo (`_puzzle_cds` Dictionary di client_game_base.gd);
+  MP server authoritative (`p.puzzle_cds` di server_player.gd) — validasi
+  idx mesin + posisi dalam rect + cooldown di `interact_puzzle` &
+  `puzzle_done` (anti-cheat). Pesan network bawa `machine` idx.
+- Pola UI standar berlaku (inventory auto-buka + panel kiri, drag-drop).
+- Test: map 22/22 (4 regression 3b3: 16 terdefinisi, 16 walkable, jarak min),
+  inventory 9/9, exchange 17/17, fase2 54/54, fase3 98/98 (update: per-mesin
+  cooldown, idx invalid ditolak, luar area ditolak). Boot 200 frame bersih.
+- Deploy: push + rebuild server + web. Live OK.

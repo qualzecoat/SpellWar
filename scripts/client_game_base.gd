@@ -24,7 +24,9 @@ var _dead := false
 var _exchange_open := false
 var _interact_available := false   # zona puzzle
 var _exchange_available := false   # zona mesin tukar
-var _puzzle_cd := 0.0              # cooldown minigame per pemain (desain: 30 dtk)
+var _interact_machine_idx := -1    # index mesin puzzle yang sedang di dekatnya (3b3)
+# Cooldown minigame PER-MESIN PER-PEMAIN (desain 3b3): {machine_idx -> sisa dtk}.
+var _puzzle_cds: Dictionary = {}
 
 # Referensi node bersama. Sengaja untyped: akses member/sinyal custom tidak
 # dikenal static typing (pola yang sama dipakai game.gd sebelumnya).
@@ -127,9 +129,10 @@ func _shift_camera(open: bool) -> void:
 func open_minigame() -> void:
 	if ui_open:
 		return
-	# Cooldown 30 dtk per pemain (desain) — cegah farming satu konsol.
-	if _puzzle_cd > 0.0:
-		hud.show_toast("Puzzle cooldown: %ds" % maxi(int(ceil(_puzzle_cd)), 1))
+	# Cooldown 30 dtk PER-MESIN PER-PEMAIN (desain 3b3).
+	var cd: float = _puzzle_cds.get(_interact_machine_idx, 0.0)
+	if cd > 0.0:
+		hud.show_toast("Puzzle cooldown: %ds" % maxi(int(ceil(cd)), 1))
 		return
 	ui_open = true
 	_set_local_input(false)
@@ -143,7 +146,7 @@ func _on_minigame_finished(success: bool) -> void:
 	_set_local_input(true)
 	hud.set_machine_panel_open(false)
 	if success:
-		_puzzle_cd = NetProto.PUZZLE_COOLDOWN
+		_puzzle_cds[_interact_machine_idx] = NetProto.PUZZLE_COOLDOWN
 		_on_minigame_success()
 	_refresh_interact()
 
@@ -159,8 +162,12 @@ func _on_minigame_success() -> void:
 
 
 func _tick_puzzle_cd(delta: float) -> void:
-	if _puzzle_cd > 0.0:
-		_puzzle_cd = maxf(_puzzle_cd - delta, 0.0)
+	for idx in _puzzle_cds.keys():
+		var left: float = maxf(float(_puzzle_cds[idx]) - delta, 0.0)
+		if left <= 0.0:
+			_puzzle_cds.erase(idx)
+		else:
+			_puzzle_cds[idx] = left
 
 
 # ---------- mesin tukar huruf ----------

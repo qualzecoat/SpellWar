@@ -258,10 +258,11 @@ func _handle(c: Dictionary, m: Dictionary) -> void:
 		"push":
 			_on_push(room, p)
 		"interact_puzzle":
-			if p.position.distance_to(Map3B.PUZZLE_POS) < 220.0:
+			var mid := int(m.get("machine", -1))
+			if _can_use_puzzle(room, p, mid):
 				_send(p.peer, "panel_ok", {"kind": "puzzle"})
 		"puzzle_done":
-			_on_puzzle_done(room, p)
+			_on_puzzle_done(room, p, int(m.get("machine", -1)))
 		"interact_exchange":
 			if p.position.distance_to(Map3B.EXCHANGE_POS) < 220.0:
 				_send(p.peer, "panel_ok", {"kind": "exchange"})
@@ -406,21 +407,35 @@ func _on_push(room: Room, p: ServerPlayer) -> void:
 		_send(p.peer, "toast", {"msg": "Dorong!"})
 
 
-func _on_puzzle_done(room: Room, p: ServerPlayer) -> void:
+## Validasi 3b3: idx mesin valid, player di dalam area interaksi mesin tsb,
+## dan cooldown per-mesin per-player sudah habis. Server authoritative (anti-cheat).
+func _can_use_puzzle(room: Room, p: ServerPlayer, mid: int) -> bool:
 	if not room.started or not p.alive or p.disconnected:
+		return false
+	if mid < 0 or mid >= Map3B.PUZZLE_INTERACT.size():
+		return false
+	var r: Rect2 = Map3B.PUZZLE_INTERACT[mid]
+	if not r.has_point(p.position):
+		return false
+	if float(p.puzzle_cds.get(mid, 0.0)) > 0.0:
+		return false
+	return true
+
+
+func _on_puzzle_done(room: Room, p: ServerPlayer, mid: int) -> void:
+	if not _can_use_puzzle(room, p, mid):
+		# Beri tahu jika gagal karena cooldown (bukan karena posisi/cheat).
+		var cd: float = float(p.puzzle_cds.get(mid, 0.0))
+		if cd > 0.0:
+			_send(p.peer, "toast", {"msg": "Puzzle cooldown: %ds" % maxi(int(ceil(cd)), 1)})
 		return
-	if p.position.distance_to(Map3B.PUZZLE_POS) > 260.0:
-		return  # validasi wajar: harus dekat konsol
-	# Cooldown 30 dtk per pemain (desain) — cegah farming satu konsol.
-	if p.puzzle_cd > 0.0:
-		_send(p.peer, "toast", {"msg": "Puzzle cooldown: %ds" % maxi(int(ceil(p.puzzle_cd)), 1)})
-		return
-	p.puzzle_cd = NetProto.PUZZLE_COOLDOWN
+	p.puzzle_cds[mid] = NetProto.PUZZLE_COOLDOWN
+	var center: Vector2 = Map3B.PUZZLE_POS[mid]
 	for i in 5:
 		var letter := String.chr(randi_range(65, 90))
 		var ang := randf() * TAU
 		var dist := randf_range(NetProto.SCATTER_REWARD_MIN, NetProto.SCATTER_REWARD_MAX)
-		_spawn_pickup(room, p.position + Vector2(cos(ang), sin(ang)) * dist, letter)
+		_spawn_pickup(room, center + Vector2(cos(ang), sin(ang)) * dist, letter)
 	_send(p.peer, "toast", {"msg": "Puzzle selesai! Pungut 5 huruf yang buyar!"})
 
 
@@ -480,8 +495,12 @@ func _sim_room(room: Room, delta: float) -> void:
 				_timeout_player(room, p)
 			continue
 		p.simulate(delta)
-		if p.puzzle_cd > 0.0:
-			p.puzzle_cd = maxf(p.puzzle_cd - delta, 0.0)
+		for mid in p.puzzle_cds.keys():
+			var left: float = maxf(float(p.puzzle_cds[mid]) - delta, 0.0)
+			if left <= 0.0:
+				p.puzzle_cds.erase(mid)
+			else:
+				p.puzzle_cds[mid] = left
 		# FIX: pemain yang mati SEBELUMNYA tidak pernah respawn di MP.
 		if not p.alive and p.respawn_left <= 0.0:
 			_respawn_player(room, p)

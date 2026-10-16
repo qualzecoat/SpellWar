@@ -38,6 +38,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_tick_puzzle_cd(delta)
+	_update_proximity()
 	if _dead:
 		_respawn_left -= delta
 		hud.show_respawn(maxi(int(ceil(_respawn_left)), 0))
@@ -52,7 +53,7 @@ func _set_local_input(enabled: bool) -> void:
 
 
 func _on_minigame_success() -> void:
-	_scatter_puzzle_reward()
+	_scatter_puzzle_reward(_interact_machine_idx)
 
 
 func _sync_after_exchange() -> void:
@@ -261,8 +262,8 @@ func _place_trap_now() -> void:
 
 # Hadiah puzzle TIDAK langsung masuk inventory — 5 huruf TERSEBAR di tanah
 # sekitar konsol sebagai pickup. Pemain harus berjalan memungutnya.
-func _scatter_puzzle_reward() -> void:
-	var center: Vector2 = map.PUZZLE_POS
+func _scatter_puzzle_reward(machine_idx: int) -> void:
+	var center: Vector2 = Map3B.PUZZLE_POS[machine_idx]
 	for i in 5:
 		var letter := String.chr(randi_range(65, 90))
 		# Containment 3b1: huruf tidak boleh buyar di dalam tembok.
@@ -270,6 +271,24 @@ func _scatter_puzzle_reward() -> void:
 			NetProto.SCATTER_REWARD_MIN, NetProto.SCATTER_REWARD_MAX)
 		SpellPickup.drop(self, at, letter)
 	hud.show_toast("Puzzle selesai! Pungut 5 huruf yang buyar!")
+
+
+# ---------- zona interaksi 3b3 ----------
+
+# Cek 16 area interaksi mesin puzzle (Rect2). Dipanggil tiap frame.
+func _update_proximity() -> void:
+	if ui_open or _dead:
+		return
+	var found := -1
+	for i in Map3B.PUZZLE_INTERACT.size():
+		var r: Rect2 = Map3B.PUZZLE_INTERACT[i]
+		if r.has_point(player.position):
+			found = i
+			break
+	if found != _interact_machine_idx:
+		_interact_machine_idx = found
+		_interact_available = found >= 0
+		_refresh_interact()
 
 
 # ---------- kematian, drop, respawn ----------

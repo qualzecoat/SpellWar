@@ -145,12 +145,12 @@ func send_push() -> void:
 	_send("push", {})
 
 
-func send_interact_puzzle() -> void:
-	_send("interact_puzzle", {})
+func send_interact_puzzle(machine_idx: int) -> void:
+	_send("interact_puzzle", {"machine": machine_idx})
 
 
-func send_puzzle_done() -> void:
-	_send("puzzle_done", {})
+func send_puzzle_done(machine_idx: int) -> void:
+	_send("puzzle_done", {"machine": machine_idx})
 
 
 func send_interact_exchange() -> void:
