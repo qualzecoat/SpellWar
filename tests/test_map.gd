@@ -159,5 +159,34 @@ func _init() -> void:
 			min_dist = minf(min_dist, d)
 	_check(min_dist > 400.0, "3b3: jarak min antar mesin > 400px (%.0f)" % min_dist)
 
+	# --- 3b4: 8 mesin tukar + 4 area ekstraksi ---
+	_check(Map3B.EXCHANGE_POS.size() == 8, "3b4: 8 EXCHANGE_POS terdefinisi")
+	_check(Map3B.EXCHANGE_INTERACT.size() == 8, "3b4: 8 EXCHANGE_INTERACT terdefinisi")
+	var exch_walk := true
+	for i in Map3B.EXCHANGE_INTERACT.size():
+		var r: Rect2 = Map3B.EXCHANGE_INTERACT[i]
+		for sy in range(5):
+			for sx in range(5):
+				var pt := r.position + Vector2(
+					r.size.x * (sx + 0.5) / 5.0, r.size.y * (sy + 0.5) / 5.0)
+				if not MapData.is_walkable(pt):
+					exch_walk = false
+					print("  tukar %d tidak walkable di %s" % [i, str(pt)])
+	_check(exch_walk, "3b4: 8 area tukar walkable penuh")
+	_check(Map3B.EXTRACT_INTERACT.size() == 4, "3b4: 4 EXTRACT_INTERACT terdefinisi")
+	var extr_walk := true
+	for i in Map3B.EXTRACT_INTERACT.size():
+		var r: Rect2 = Map3B.EXTRACT_INTERACT[i]
+		for sy in range(5):
+			for sx in range(5):
+				var pt := r.position + Vector2(
+					r.size.x * (sx + 0.5) / 5.0, r.size.y * (sy + 0.5) / 5.0)
+				if not MapData.is_walkable(pt):
+					extr_walk = false
+					print("  ekstraksi %d tidak walkable di %s" % [i, str(pt)])
+	_check(extr_walk, "3b4: 4 area ekstraksi walkable penuh")
+	# Badan ekstraksi = tembok (tidak walkable di tengah).
+	_check(not MapData.is_walkable(Map3B.EXTRACT_POS), "3b4: badan ekstraksi = tembok")
+
 	print("map: %d lolos, %d gagal" % [_passed, _failed])
 	quit(_failed)

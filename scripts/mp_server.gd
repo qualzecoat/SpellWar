@@ -264,7 +264,7 @@ func _handle(c: Dictionary, m: Dictionary) -> void:
 		"puzzle_done":
 			_on_puzzle_done(room, p, int(m.get("machine", -1)))
 		"interact_exchange":
-			if p.position.distance_to(Map3B.EXCHANGE_POS) < 220.0:
+			if _can_use_exchange(room, p):
 				_send(p.peer, "panel_ok", {"kind": "exchange"})
 		"exchange_do":
 			_on_exchange(room, p, m)
@@ -421,6 +421,18 @@ func _can_use_puzzle(room: Room, p: ServerPlayer, mid: int) -> bool:
 	if float(p.puzzle_cds.get(mid, 0.0)) > 0.0:
 		return false
 	return true
+
+
+## 3b4: validasi mesin tukar — player harus di salah satu dari 8 area.
+func _can_use_exchange(room: Room, p: ServerPlayer) -> bool:
+	if not room.started or not p.alive or p.disconnected:
+		return false
+	for i in Map3B.EXCHANGE_INTERACT.size():
+		var r: Rect2 = Map3B.EXCHANGE_INTERACT[i]
+		# Toleransi 80px untuk network lag (seperti puzzle).
+		if r.grow(80).has_point(p.position):
+			return true
+	return false
 
 
 func _on_puzzle_done(room: Room, p: ServerPlayer, mid: int) -> void:

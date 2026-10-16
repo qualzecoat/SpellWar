@@ -72,6 +72,9 @@ func _do_interact() -> void:
 		open_minigame()
 	elif _exchange_available:
 		open_exchange()
+	elif _extract_available:
+		# 3b4: logika ekstraksi = Fase 4+. Untuk sekarang tampilkan toast.
+		hud.show_toast("Mesin ekstraksi segera hadir (Fase 4)!")
 	else:
 		_do_push()
 
@@ -275,7 +278,8 @@ func _scatter_puzzle_reward(machine_idx: int) -> void:
 
 # ---------- zona interaksi 3b3 ----------
 
-# Cek 16 area interaksi mesin puzzle (Rect2). Dipanggil tiap frame.
+# Cek area interaksi mesin (Rect2). Dipanggil tiap frame.
+# Prioritas: puzzle > tukar > ekstraksi.
 func _update_proximity() -> void:
 	if ui_open or _dead:
 		return
@@ -285,9 +289,25 @@ func _update_proximity() -> void:
 		if r.has_point(player.position):
 			found = i
 			break
-	if found != _interact_machine_idx:
+	var show_exch := false
+	if found < 0:
+		for i in Map3B.EXCHANGE_INTERACT.size():
+			var r: Rect2 = Map3B.EXCHANGE_INTERACT[i]
+			if r.has_point(player.position):
+				show_exch = true
+				break
+	var show_extr := false
+	if found < 0 and not show_exch:
+		for i in Map3B.EXTRACT_INTERACT.size():
+			var r: Rect2 = Map3B.EXTRACT_INTERACT[i]
+			if r.has_point(player.position):
+				show_extr = true
+				break
+	if found != _interact_machine_idx or show_exch != _exchange_available or show_extr != _extract_available:
 		_interact_machine_idx = found
 		_interact_available = found >= 0
+		_exchange_available = show_exch
+		_extract_available = show_extr
 		_refresh_interact()
 
 

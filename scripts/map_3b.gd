@@ -50,8 +50,41 @@ const PUZZLE_INTERACT: Array = [
 	Rect2(794, 2195, 160, 110),   # 15: (874,2250)
 	Rect2(7563, 5280, 160, 110),  # 16: (7643,5335)
 ]
-# Sentinel untuk 3b4 (belum ada mesin tukar/ekstraksi).
-const EXCHANGE_POS := Vector2(-99999, -99999)
+# --- 3b4: 8 mesin tukar huruf + 1 mesin ekstraksi ---
+# Posisi mesin tukar (ungu di diagram user). Badan mesin BELUM ADA (tidak di
+# texture, tidak ada wall) — 3b4 hanya logika interaksi; visual/body menyusul.
+const EXCHANGE_POS: Array = [
+	Vector2(3834, 1645),  # 1
+	Vector2(5216, 1645),  # 2
+	Vector2(2323, 3142),  # 3
+	Vector2(1018, 3770),  # 4
+	Vector2(7443, 3898),  # 5
+	Vector2(3219, 5843),  # 6
+	Vector2(4397, 5984),  # 7
+	Vector2(6419, 4640),  # 8
+]
+# Area interaksi tiap mesin tukar. Umumnya di BAWAH mesin (+100Y, 160x110);
+# mesin 4 & 6 di ATAS (bawahnya tembok). Semua terverifikasi walkable.
+const EXCHANGE_INTERACT: Array = [
+	Rect2(3834, 1750, 160, 110),  # 1
+	Rect2(5136, 1690, 160, 110),  # 2
+	Rect2(2163, 3187, 160, 110),  # 3
+	Rect2(938, 3615, 160, 110),   # 4: di atas
+	Rect2(7323, 3943, 160, 110),  # 5
+	Rect2(3139, 5688, 160, 110),  # 6: di atas
+	Rect2(4317, 6029, 160, 110),  # 7
+	Rect2(6259, 4685, 160, 110),  # 8
+]
+# Mesin ekstraksi: badan = Wall_Extract 240x240 di (4262,3774) (sudah ada).
+# 4 area interaksi walkable (160x110 tiapnya).
+const EXTRACT_POS := Vector2(4262, 3774)
+const EXTRACT_INTERACT: Array = [
+	Rect2(4182, 3469, 160, 110),  # atas
+	Rect2(4182, 3969, 160, 110),  # bawah
+	Rect2(3932, 3719, 160, 110),  # kiri
+	Rect2(4432, 3719, 160, 110),  # kanan
+]
+# Sentinel lama (backward compat, tidak dipakai lagi di 3b4).
 const MACHINE_POS := Vector2(-99999, -99999)
 # 3b2: 8 area spawn resmi = posisi angka 1-8 yang SUDAH DIGAMBAR di texture
 # map user (pink/magenta). Player random spawn di salah satu dari 8 titik ini.

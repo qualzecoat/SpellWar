@@ -93,6 +93,9 @@ func _do_interact() -> void:
 		Net.send_interact_puzzle(_interact_machine_idx)
 	elif _exchange_available:
 		Net.send_interact_exchange()
+	elif _extract_available:
+		# 3b4: logika ekstraksi = Fase 4+. Toast client-side saja.
+		hud.show_toast("Mesin ekstraksi segera hadir (Fase 4)!")
 	else:
 		Net.send_push()
 
@@ -358,13 +361,26 @@ func _update_proximity() -> void:
 		if r.has_point(_my_pos):
 			found = i
 			break
-	var de := _my_pos.distance_to(map.EXCHANGE_POS)
+	var show_exch := false
+	if found < 0:
+		for i in Map3B.EXCHANGE_INTERACT.size():
+			var r: Rect2 = Map3B.EXCHANGE_INTERACT[i]
+			if r.has_point(_my_pos):
+				show_exch = true
+				break
+	var show_extr := false
+	if found < 0 and not show_exch:
+		for i in Map3B.EXTRACT_INTERACT.size():
+			var r: Rect2 = Map3B.EXTRACT_INTERACT[i]
+			if r.has_point(_my_pos):
+				show_extr = true
+				break
 	var show_puzzle := found >= 0
-	var show_exch := de < 150.0 and not show_puzzle
-	if found != _interact_machine_idx or show_puzzle != _interact_available or show_exch != _exchange_available:
+	if found != _interact_machine_idx or show_puzzle != _interact_available or show_exch != _exchange_available or show_extr != _extract_available:
 		_interact_machine_idx = found
 		_interact_available = show_puzzle
 		_exchange_available = show_exch
+		_extract_available = show_extr
 		_refresh_interact()
 
 

@@ -290,3 +290,25 @@
   inventory 9/9, exchange 17/17, fase2 54/54, fase3 98/98 (update: per-mesin
   cooldown, idx invalid ditolak, luar area ditolak). Boot 200 frame bersih.
 - Deploy: push + rebuild server + web. Live OK.
+
+## 2026-10-16 — Fase 3b4: 8 mesin tukar + 1 mesin ekstraksi (area interaksi)
+
+- User perintahkan 3b4: 8 mesin tukar huruf + mesin ekstraksi dengan area interaksi.
+- Mesin tukar (ungu di diagram): posisi dari spec user (game coords):
+  1:(3834,1645) 2:(5216,1645) 3:(2323,3142) 4:(1018,3770)
+  5:(7443,3898) 6:(3219,5843) 7:(4397,5984) 8:(6419,4640).
+  Badan mesin BELUM ADA (tidak di texture, tidak ada wall) — 3b4 hanya logika
+  interaksi; visual/body menyusul jika user gambar.
+- Area interaksi tukar: 1 per mesin, 160x110. Umumnya di BAWAH (+100Y);
+  mesin 4 & 6 di ATAS (bawahnya tembok). Semua 8 terverifikasi walkable di mask.
+- Mesin ekstraksi: badan = Wall_Extract 240x240 di (4262,3774) (sudah ada dari
+  3b1). 4 area interaksi 160x110 (atas/bawah/kiri/kanan), semua walkable.
+- Mekanisme: proximity Rect2.has_point (prioritas puzzle > tukar > ekstraksi)
+  → ACTION: "TUKAR (E)" / "EKSTRAKSI (E)". Tukar → sistem exchange Fase 1b
+  (tidak ada cooldown khusus). Ekstraksi 3b4 = toast "segera hadir (Fase 4)"
+  (logika keyword/menang = Fase 4+).
+- MP server authoritative: `_can_use_exchange()` validasi 8 rect + toleransi
+  80px (seperti puzzle). `interact_exchange` tidak lagi pakai sentinel.
+- Test: map (6 regression 3b4 baru: 8+4 terdefinisi, walkable penuh, badan
+  ekstraksi = tembok), inventory, exchange, fase2, fase3.
+- Deploy: push + rebuild server + web. Live OK.

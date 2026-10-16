@@ -24,6 +24,7 @@ var _dead := false
 var _exchange_open := false
 var _interact_available := false   # zona puzzle
 var _exchange_available := false   # zona mesin tukar
+var _extract_available := false    # zona mesin ekstraksi (3b4)
 var _interact_machine_idx := -1    # index mesin puzzle yang sedang di dekatnya (3b3)
 # Cooldown minigame PER-MESIN PER-PEMAIN (desain 3b3): {machine_idx -> sisa dtk}.
 var _puzzle_cds: Dictionary = {}
@@ -226,6 +227,9 @@ func _refresh_interact() -> void:
 		hud.set_interact_highlighted(true)
 	elif _exchange_available:
 		hud.set_interact_text("TUKAR (E)")
+		hud.set_interact_highlighted(true)
+	elif _extract_available:
+		hud.set_interact_text("EKSTRAKSI (E)")
 		hud.set_interact_highlighted(true)
 	else:
 		hud.set_interact_text("DORONG")
