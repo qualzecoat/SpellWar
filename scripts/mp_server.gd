@@ -415,7 +415,8 @@ func _can_use_puzzle(room: Room, p: ServerPlayer, mid: int) -> bool:
 	if mid < 0 or mid >= Map3B.PUZZLE_INTERACT.size():
 		return false
 	var r: Rect2 = Map3B.PUZZLE_INTERACT[mid]
-	if not r.has_point(p.position):
+	# Toleransi 80px untuk network lag (posisi server bisa tertinggal dari client).
+	if not r.grow(80).has_point(p.position):
 		return false
 	if float(p.puzzle_cds.get(mid, 0.0)) > 0.0:
 		return false
