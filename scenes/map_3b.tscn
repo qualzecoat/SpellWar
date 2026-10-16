@@ -425,6 +425,7 @@ position = Vector2(0, 3.0517578e-05)
 scale = Vector2(0.5243697, 0.5243698)
 texture = ExtResource("2_qnftd")
 polygon = PackedVector2Array(0, 0, 16134.545, 0, 16134.545, 14280, 0, 14280)
+uv = PackedVector2Array(0, 0, 1, 0, 1, 1, 0, 1)
 metadata/_edit_lock_ = true
 
 [node name="Floor" type="Node2D" parent="." unique_id=1529741267]
