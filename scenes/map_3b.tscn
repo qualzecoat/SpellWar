@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bhildh0f5dnrs"]
 
-[ext_resource type="Script" uid="uid://cn1fffmi2sjcd" path="res://scripts/map_3b.gd" id="1_map3b"]
-[ext_resource type="Texture2D" uid="uid://c2spu6rwi15xd" path="res://assets/PNG/Aset Map Utama Compresed.png" id="2_qnftd"]
+[ext_resource type="Script" uid="uid://fscy1whiaj4k" path="res://scripts/map_3b.gd" id="1_map3b"]
+[ext_resource type="Texture2D" uid="uid://dxfp2em7a6sp7" path="res://assets/PNG/Aset Map Utama Compresed.png" id="2_qnftd"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wall_021"]
 size = Vector2(1696.5, 1714)
@@ -415,7 +415,7 @@ size = Vector2(405.04297, 1332)
 size = Vector2(144, 1332)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_extract"]
-size = Vector2(136, 134)
+size = Vector2(240, 240)
 
 [node name="Map3B" type="Node2D" unique_id=2018019038]
 script = ExtResource("1_map3b")
@@ -1007,7 +1007,7 @@ position = Vector2(8434, 5628)
 shape = SubResource("RectangleShape2D_lobp1")
 
 [node name="Wall_Extract" type="CollisionShape2D" parent="Walls" unique_id=467927664]
-position = Vector2(4280, 3779)
+position = Vector2(4262, 3774)
 shape = SubResource("RectangleShape2D_extract")
 
 [node name="Wall_159" type="CollisionShape2D" parent="." unique_id=1058992042]
